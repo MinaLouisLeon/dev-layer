@@ -1,0 +1,122 @@
+:root {
+  --bg: rgba(2, 8, 12, 0.72);
+  --line: rgba(94, 234, 255, 0.35);
+  --line-soft: rgba(94, 234, 255, 0.14);
+  --fg: #cdf4ff;
+  --dim: rgba(160, 208, 224, 0.55);
+  --accent: #ffb347;
+  --glow: 0 0 12px rgba(94, 234, 255, 0.45);
+  --font: "Consolas", "JetBrains Mono", ui-monospace, monospace;
+}
+
+* { box-sizing: border-box; }
+
+html, body, #root { height: 100%; margin: 0; }
+
+body {
+  background: transparent; /* the HUD window is transparent; only chrome paints */
+  color: var(--fg);
+  font-family: var(--font);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  overflow: hidden;
+  user-select: none;
+  cursor: default;
+}
+
+.placeholder { padding: 12px; color: var(--dim); }
+
+.hud { position: relative; height: 100%; width: 100%; }
+.hud--error { padding: 16px; color: #ff8a8a; }
+
+.hud__scanlines {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(94, 234, 255, 0.035) 0 1px,
+    transparent 1px 3px
+  );
+}
+
+/* ---- rails: the only painted, interactive chrome ---- */
+.rail {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--bg);
+  backdrop-filter: blur(6px);
+  border: 1px solid var(--line-soft);
+  pointer-events: auto;
+}
+
+.rail--top { top: 0; left: 0; right: 0; height: 34px; padding: 0 12px; border-width: 0 0 1px; }
+.rail--bottom { bottom: 0; left: 0; right: 0; height: 34px; padding: 0 12px; border-width: 1px 0 0; }
+.rail--left {
+  top: 34px; bottom: 34px; left: 0; width: 220px;
+  flex-direction: column; align-items: stretch; gap: 8px;
+  padding: 12px; border-width: 0 1px 0 0;
+}
+
+.hud--minimal .rail--left { display: none; }
+
+h2 { margin: 0; font-size: 10px; font-weight: 600; color: var(--dim); letter-spacing: 0.22em; }
+
+.tag {
+  padding: 2px 7px;
+  border: 1px solid var(--line);
+  color: var(--fg);
+  text-shadow: var(--glow);
+  font-size: 10px;
+  letter-spacing: 0.2em;
+}
+.tag--accent { border-color: var(--accent); color: var(--accent); text-shadow: 0 0 10px rgba(255, 179, 71, 0.5); }
+
+.dim { color: var(--dim); }
+.note { margin: 0; font-size: 10px; }
+.spacer { flex: 1; }
+
+.monitors { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.monitors li {
+  display: grid;
+  grid-template-columns: 16px 1fr auto;
+  gap: 6px;
+  align-items: baseline;
+  padding: 5px 6px;
+  border: 1px solid transparent;
+  border-left: 2px solid var(--line-soft);
+  color: var(--dim);
+}
+.monitors li.is-self { color: var(--fg); border-left-color: var(--accent); background: rgba(94, 234, 255, 0.06); }
+.monitors b { color: var(--accent); font-weight: 500; }
+.monitors span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.monitors em { font-style: normal; font-size: 10px; opacity: 0.7; }
+
+/* ---- slot: the region milestone 4 will tile app windows into ---- */
+.slot { position: absolute; pointer-events: none; }
+.slot__label {
+  position: absolute;
+  top: 6px; left: 10px;
+  font-size: 10px;
+  color: var(--line);
+  letter-spacing: 0.24em;
+}
+
+.bracket { position: absolute; width: 22px; height: 22px; border: 1px solid var(--line); box-shadow: var(--glow); }
+.bracket--tl { top: 0; left: 0; border-width: 1px 0 0 1px; }
+.bracket--tr { top: 0; right: 0; border-width: 1px 1px 0 0; }
+.bracket--bl { bottom: 0; left: 0; border-width: 0 0 1px 1px; }
+.bracket--br { bottom: 0; right: 0; border-width: 0 1px 1px 0; }
+
+.exit {
+  font: inherit;
+  letter-spacing: 0.2em;
+  padding: 4px 12px;
+  color: #ffd9d9;
+  background: rgba(60, 8, 8, 0.6);
+  border: 1px solid rgba(255, 120, 120, 0.5);
+  cursor: pointer;
+}
+.exit:hover { background: rgba(120, 16, 16, 0.7); box-shadow: 0 0 12px rgba(255, 90, 90, 0.35); }
