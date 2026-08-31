@@ -42,3 +42,70 @@ export interface MonitorChange {
   removed: string[];
   changed: MonitorInfo[];
 }
+
+/** Mirrors `src-tauri/src/metrics/`. */
+
+export interface CpuMetrics {
+  usage: number;
+  perCore: number[];
+  frequencyMhz: number;
+}
+
+export interface MemoryMetrics {
+  used: number;
+  total: number;
+  swapUsed: number;
+  swapTotal: number;
+}
+
+export interface GpuMetrics {
+  name: string;
+  /** `null` means "not measurable on this machine", never "zero". */
+  utilization: number | null;
+  memoryUsed: number | null;
+  memoryTotal: number | null;
+  temperatureC: number | null;
+  source: "nvml" | "pdh";
+}
+
+export interface NetworkMetrics {
+  rxPerSec: number;
+  txPerSec: number;
+  rxTotal: number;
+  txTotal: number;
+}
+
+export interface DiskMetrics {
+  name: string;
+  mount: string;
+  used: number;
+  total: number;
+}
+
+export interface ProcessMetrics {
+  pid: number;
+  name: string;
+  cpu: number;
+  memory: number;
+}
+
+export interface MetricsSnapshot {
+  timestampMs: number;
+  cpu: CpuMetrics;
+  memory: MemoryMetrics;
+  gpus: GpuMetrics[];
+  network: NetworkMetrics;
+  disks: DiskMetrics[];
+  processes: ProcessMetrics[];
+  uptimeSecs: number;
+}
+
+export interface HostInfo {
+  hostname: string;
+  os: string;
+  kernel: string;
+  cpuBrand: string;
+  physicalCores: number;
+  logicalCores: number;
+  totalMemory: number;
+}

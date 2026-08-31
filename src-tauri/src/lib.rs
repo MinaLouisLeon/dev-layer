@@ -13,6 +13,7 @@ pub mod config;
 pub mod error;
 pub mod geometry;
 pub mod hud;
+pub mod metrics;
 pub mod monitors;
 pub mod platform;
 pub mod safety;
@@ -23,6 +24,7 @@ use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
 
 use crate::config::Config;
 use crate::hud::HudManager;
+use crate::metrics::MetricsStore;
 use crate::monitors::MonitorRegistry;
 
 /// Shared, read-mostly application state.
@@ -30,6 +32,7 @@ pub struct AppState {
     pub config: Config,
     pub monitors: MonitorRegistry,
     pub hud: HudManager,
+    pub metrics: MetricsStore,
 }
 
 pub fn run() {
@@ -45,6 +48,8 @@ pub fn run() {
             bus::get_config,
             bus::hud_context,
             bus::refresh_monitors,
+            bus::latest_metrics,
+            bus::host_info,
             bus::shutdown,
         ])
         .setup(|app| {
@@ -79,6 +84,7 @@ fn start(app: &AppHandle) -> error::Result<()> {
         config: config.clone(),
         monitors: MonitorRegistry::default(),
         hud: HudManager::default(),
+        metrics: MetricsStore::default(),
     });
 
     // 1. Discover displays and put a HUD on each one.
@@ -94,7 +100,10 @@ fn start(app: &AppHandle) -> error::Result<()> {
     // 3. React to displays being plugged, unplugged, or rearranged.
     monitors::spawn_watcher(app.clone())?;
 
-    // 4. The escape hatch, available even if the HUD stops responding.
+    // 4. Telemetry: the HUD's reason to exist.
+    metrics::spawn_sampler(app.clone(), config.metrics.clone())?;
+
+    // 5. The escape hatch, available even if the HUD stops responding.
     register_exit_hotkey(app, &config)?;
 
     tracing::info!(exit = %config.hotkeys.exit, "dev-layer ready");

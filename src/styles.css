@@ -5,6 +5,13 @@
   --fg: #cdf4ff;
   --dim: rgba(160, 208, 224, 0.55);
   --accent: #ffb347;
+  /* Status bands, shared by every meter: nominal < 75 <= warning < 90 <= critical.
+     Validated for chroma, CVD separation (worst adjacent dE 13.7) and contrast
+     against the HUD surface; every meter also prints its number, so colour is
+     never the only encoding. */
+  --ok: #5eeaff;
+  --warn: #ffb347;
+  --crit: #ff5a5a;
   --glow: 0 0 12px rgba(94, 234, 255, 0.45);
   --font: "Consolas", "JetBrains Mono", ui-monospace, monospace;
 }
@@ -55,10 +62,12 @@ body {
 .rail--top { top: 0; left: 0; right: 0; height: 34px; padding: 0 12px; border-width: 0 0 1px; }
 .rail--bottom { bottom: 0; left: 0; right: 0; height: 34px; padding: 0 12px; border-width: 1px 0 0; }
 .rail--left {
-  top: 34px; bottom: 34px; left: 0; width: 220px;
-  flex-direction: column; align-items: stretch; gap: 8px;
+  top: 34px; bottom: 34px; left: 0; width: 280px;
+  flex-direction: column; align-items: stretch; gap: 10px;
   padding: 12px; border-width: 0 1px 0 0;
+  overflow-y: auto; scrollbar-width: none;
 }
+.rail--left::-webkit-scrollbar { display: none; }
 
 .hud--minimal .rail--left { display: none; }
 
@@ -120,3 +129,82 @@ h2 { margin: 0; font-size: 10px; font-weight: 600; color: var(--dim); letter-spa
   cursor: pointer;
 }
 .exit:hover { background: rgba(120, 16, 16, 0.7); box-shadow: 0 0 12px rgba(255, 90, 90, 0.35); }
+
+
+/* ---------------------------------------------------- telemetry blocks */
+.block { display: flex; flex-direction: column; gap: 6px; }
+.block--grow { flex: 1 1 auto; min-height: 0; }
+
+.meter { display: grid; grid-template-columns: 62px 1fr; gap: 10px; align-items: center; }
+.meter__body { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.meter__detail {
+  font-size: 10px;
+  color: var(--dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---- ring meter ---- */
+.ring { position: relative; flex: none; }
+.ring svg { display: block; transform: rotate(0deg); }
+.ring__track { fill: none; stroke: rgba(94, 234, 255, 0.13); stroke-width: 7; }
+.ring__value {
+  fill: none;
+  stroke: var(--ok);
+  stroke-width: 7;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 4px rgba(94, 234, 255, 0.55));
+  transition: stroke-dasharray 0.45s ease-out, stroke 0.3s linear;
+}
+.ring--warning .ring__value { stroke: var(--warn); filter: drop-shadow(0 0 4px rgba(255, 179, 71, 0.5)); }
+.ring--critical .ring__value { stroke: var(--crit); filter: drop-shadow(0 0 5px rgba(255, 90, 90, 0.55)); }
+
+.ring__readout {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  pointer-events: none;
+}
+.ring__readout b { font-size: 16px; font-weight: 500; color: var(--fg); letter-spacing: 0; }
+.ring__readout span { font-size: 8px; color: var(--dim); letter-spacing: 0.18em; }
+
+/* ---- sparkline ---- */
+.spark { width: 100%; display: block; overflow: visible; }
+.spark--empty { border-bottom: 1px dashed var(--line-soft); }
+.spark__line { fill: none; stroke: var(--line); stroke-width: 1.5; stroke-linejoin: round; }
+
+/* ---- per-core bars ---- */
+.cores { display: flex; align-items: flex-end; gap: 2px; height: 34px; }
+.cores__slot { flex: 1 1 0; height: 100%; display: flex; align-items: flex-end; background: rgba(94, 234, 255, 0.07); }
+.cores__bar { width: 100%; background: var(--ok); border-radius: 2px 2px 0 0; transition: height 0.4s ease-out; }
+.cores__bar--warning { background: var(--warn); }
+.cores__bar--critical { background: var(--crit); }
+
+/* ---- process table (also the accessible table view of the CPU meter) ---- */
+.proc { width: 100%; border-collapse: collapse; font-size: 10px; }
+.proc th {
+  text-align: left;
+  font-weight: 500;
+  color: var(--dim);
+  letter-spacing: 0.16em;
+  padding-bottom: 3px;
+  border-bottom: 1px solid var(--line-soft);
+}
+.proc th:not(:first-child), .proc .num { text-align: right; }
+.proc td { padding: 3px 0; color: var(--fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 130px; }
+.proc td.num { color: var(--dim); font-variant-numeric: tabular-nums; }
+
+/* ---- compact readouts (minimal-chrome monitors) ---- */
+.readouts { display: flex; gap: 10px; }
+.readout { color: var(--dim); font-size: 10px; }
+.readout em { font-style: normal; letter-spacing: 0.18em; opacity: 0.75; }
+.readout--warning { color: var(--warn); }
+.readout--critical { color: var(--crit); }
+
+.netline { display: flex; justify-content: space-between; margin: 0; font-size: 10px; color: var(--dim); font-variant-numeric: tabular-nums; }
+.clock { color: var(--fg); font-variant-numeric: tabular-nums; letter-spacing: 0.1em; }

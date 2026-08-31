@@ -9,6 +9,7 @@ use tauri::{AppHandle, Manager, State};
 
 use crate::config::Config;
 use crate::hud::{HudContext, LABEL_PREFIX};
+use crate::metrics::MetricsSnapshot;
 use crate::monitors::MonitorInfo;
 use crate::AppState;
 
@@ -38,6 +39,19 @@ pub fn hud_context(label: String, state: State<'_, AppState>) -> Result<HudConte
         .ok_or_else(|| format!("monitor {monitor_id} is gone"))?;
 
     Ok(state.hud.context(&monitor, &state.config))
+}
+
+/// The most recent sample, so a HUD window opened mid-session paints
+/// immediately instead of waiting for the next tick.
+#[tauri::command]
+pub fn latest_metrics(state: State<'_, AppState>) -> Option<MetricsSnapshot> {
+    state.metrics.latest()
+}
+
+/// Static machine facts (CPU model, core counts, OS), fetched once.
+#[tauri::command]
+pub fn host_info() -> crate::metrics::HostInfo {
+    crate::metrics::host_info()
 }
 
 /// Restores the desktop and quits. The only intended way out, and the same

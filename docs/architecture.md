@@ -74,6 +74,45 @@ layer at the same commands, so capabilities added there are automatically
 addressable by natural language. New capability → new bus command, not ad-hoc
 frontend logic.
 
+## 7. Telemetry: tiered sampling, and honest gaps
+
+One sampler thread, one event per tick carrying a whole snapshot. Rust holds
+only what it must (rate deltas, the last snapshot so a newly opened HUD paints
+immediately); the frontend owns the history buffers.
+
+Sampling is tiered because the cost is wildly uneven: reading CPU and memory
+counters is nearly free, while enumerating every process is not. Cheap counters
+run every tick, `slowTickEvery` gates the expensive ones, and the last result is
+carried forward in between.
+
+**GPU has two backends** because Windows exposes no single vendor-neutral API:
+NVML for NVIDIA (utilization, VRAM total, temperature) and PDH performance
+counters for everything else (utilization and VRAM used only). Two decisions
+worth keeping:
+
+* PDH utilization is aggregated as *sum within an engine type, max across
+  engine types* — the same thing Task Manager shows. Summing all engines can
+  exceed 100 %; averaging them understates load.
+* Unmeasurable values are `None` all the way to the UI, which renders `—`.
+  A HUD that confidently prints "GPU 0 %" on a machine it cannot read is worse
+  than one that admits it does not know.
+
+## 8. Visual encoding
+
+Meters share one status band — nominal / warning (>= 75) / critical (>= 90) — so a
+number means the same thing wherever it appears. The palette was checked with
+the visualization validator: chroma, CVD separation (worst adjacent pair
+ΔE 13.7 deutan), and contrast against the HUD surface all pass. The lightness
+band check fails by design: it is calibrated for a `#1a1a19` chart surface,
+while the HUD sits on near-black `#02080c` and deliberately uses bright, glowing
+marks. Every meter prints its value, so colour is reinforcement and never the
+sole encoding — and the process table doubles as the table view of the CPU
+meter.
+
+Sparklines are line-only. An area fill under a near-constant series (memory
+sits at a stable percentage for hours) reads as a magnitude bar rather than a
+trend, which is the wrong claim.
+
 ## Module map
 
 ```
@@ -84,6 +123,7 @@ src-tauri/src/
 ├─ geometry.rs     Rect (physical) / Insets (logical)
 ├─ error.rs        error type, IPC-friendly conversion
 ├─ bus/            all Tauri commands
+├─ metrics/        sampler thread, snapshot types, GPU backends
 ├─ monitors/       topology registry, diffing, watcher thread
 ├─ hud/            per-monitor HUD windows, reserved-region contract
 ├─ shell/          reversible shell mutation (taskbar auto-hide)

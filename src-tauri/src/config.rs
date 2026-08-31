@@ -12,6 +12,7 @@ pub struct Config {
     pub hud: HudConfig,
     pub shell: ShellConfig,
     pub hotkeys: HotkeyConfig,
+    pub metrics: MetricsConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -42,6 +43,31 @@ impl Default for HudConfig {
                 left: 0,
             },
             full_chrome_on_secondary: false,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+pub struct MetricsConfig {
+    /// Sampling tick. 1 s is the sweet spot: fast enough to feel live, slow
+    /// enough that the sampler stays invisible in its own CPU graph.
+    pub interval_ms: u64,
+    /// How many ticks between the expensive refreshes (process table, disks).
+    pub slow_tick_every: u32,
+    /// Processes shown in the HUD, ranked by CPU.
+    pub top_processes: usize,
+    /// Samples the HUD keeps for sparklines; 120 at 1 s is two minutes.
+    pub history_samples: usize,
+}
+
+impl Default for MetricsConfig {
+    fn default() -> Self {
+        Self {
+            interval_ms: 1000,
+            slow_tick_every: 3,
+            top_processes: 6,
+            history_samples: 120,
         }
     }
 }

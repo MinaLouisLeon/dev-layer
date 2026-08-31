@@ -1,6 +1,12 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
-import type { HudContext, MonitorChange, MonitorInfo } from "../types";
+import type {
+  HostInfo,
+  HudContext,
+  MetricsSnapshot,
+  MonitorChange,
+  MonitorInfo,
+} from "../types";
 
 export const listMonitors = () => invoke<MonitorInfo[]>("list_monitors");
 
@@ -15,3 +21,13 @@ export const onMonitorsChanged = (
   cb: (change: MonitorChange) => void,
 ): Promise<UnlistenFn> =>
   listen<MonitorChange>("monitors::changed", (e) => cb(e.payload));
+
+export const latestMetrics = () =>
+  invoke<MetricsSnapshot | null>("latest_metrics");
+
+export const getHostInfo = () => invoke<HostInfo>("host_info");
+
+export const onMetrics = (
+  cb: (snapshot: MetricsSnapshot) => void,
+): Promise<UnlistenFn> =>
+  listen<MetricsSnapshot>("metrics::tick", (e) => cb(e.payload));

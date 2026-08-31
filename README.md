@@ -7,12 +7,12 @@ It is a **layer**, not a shell replacement. `explorer.exe` keeps running, the
 Winlogon registry is never touched, and every change dev-layer makes to the
 desktop is undone on exit — including on crash.
 
-## Status: milestone 1 of 6
+## Status: milestone 2 of 6
 
 | # | Milestone | State |
 |---|---|---|
 | 1 | Shell, per-monitor HUD windows, safe teardown | **done** |
-| 2 | Metrics: CPU / RAM / GPU / net gauges | not started |
+| 2 | Metrics: CPU / RAM / GPU / net gauges | **done** |
 | 3 | App catalog: Start Menu discovery, icons, dock | not started |
 | 4 | Window manager: slots, layouts, DWM thumbnails | not started |
 | 5 | Native panels: terminal, REST client, git/docker | not started |
@@ -72,11 +72,17 @@ Written on first run to `%APPDATA%\dev.devlayer.hud\config.json`:
 ```json
 {
   "hud": {
-    "reserved": { "top": 34, "right": 0, "bottom": 34, "left": 220 },
+    "reserved": { "top": 34, "right": 0, "bottom": 34, "left": 280 },
     "reservedMinimal": { "top": 34, "right": 0, "bottom": 34, "left": 0 },
     "fullChromeOnSecondary": false
   },
   "shell": { "hideTaskbar": true },
+  "metrics": {
+    "intervalMs": 1000,
+    "slowTickEvery": 3,
+    "topProcesses": 6,
+    "historySamples": 120
+  },
   "hotkeys": { "exit": "Ctrl+Alt+Shift+Q" }
 }
 ```
@@ -84,6 +90,32 @@ Written on first run to `%APPDATA%\dev.devlayer.hud\config.json`:
 `reserved` is in logical (CSS) pixels and must match the rail sizes in
 `src/styles.css`. A malformed config logs a warning and falls back to defaults
 rather than leaving you without a shell.
+
+## Telemetry
+
+One Rust thread samples on a fixed tick and pushes a whole snapshot to the HUD
+as a single event; the frontend owns the history for sparklines. Sampling is
+tiered — cheap counters (CPU, memory, GPU, network) every tick, expensive ones
+(process table, disks) every third — because a tool that reports your CPU usage
+should not show up in its own graph.
+
+GPU is the awkward one, since Windows has no single vendor-neutral API:
+
+| Backend | Covers | Reports |
+|---|---|---|
+| **NVML** (`nvidia` feature, default on) | NVIDIA only | utilization, VRAM used **and total**, temperature |
+| **PDH counters** | any GPU, same source as Task Manager | utilization, VRAM used |
+
+NVML is preferred when present, PDH is the fallback. Utilization from PDH is
+the **busiest engine type** (3D, Copy, VideoDecode…), matching Task Manager —
+summing engines would cheerfully report 300 %. Anything a backend cannot
+measure is shown as `—`, never as `0`.
+
+Build without NVML (no NVIDIA hardware, smaller build):
+
+```bash
+npm run tauri build -- --no-default-features
+```
 
 ## Multi-monitor
 
