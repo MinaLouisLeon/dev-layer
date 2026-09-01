@@ -29,6 +29,19 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+      # Cross-compiling to windows-msvc runs tauri-winres, which shells out to
+      # llvm-rc to embed the icon and version resource into the binary. Ubuntu
+      # ships it under a versioned name only, so expose an unversioned alias —
+      # without it the build script panics with NotAttempted("llvm-rc").
+      - name: Provide the Windows resource compiler
+        run: |
+          if ! command -v llvm-rc >/dev/null; then
+            if ! ls /usr/bin/llvm-rc-* >/dev/null 2>&1; then
+              sudo apt-get update && sudo apt-get install -y llvm
+            fi
+            sudo ln -sf "$(ls /usr/bin/llvm-rc-* | sort -V | tail -1)" /usr/local/bin/llvm-rc
+          fi
+          command -v llvm-rc
       - run: npm ci && npm run build
       - run: cargo fmt --manifest-path src-tauri/Cargo.toml --check
       - run: cargo check --manifest-path src-tauri/Cargo.toml --target x86_64-pc-windows-msvc --all-targets
