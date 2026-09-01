@@ -41,6 +41,7 @@ import type {
 const TerminalPanel = lazy(() => import("../components/TerminalPanel"));
 const HttpPanel = lazy(() => import("../components/HttpPanel"));
 const AskPanel = lazy(() => import("../components/AskPanel"));
+const WorkbenchPanel = lazy(() => import("../components/WorkbenchPanel"));
 
 export function Hud({ label }: { label: string }) {
   const [ctx, setCtx] = useState<HudContext | null>(null);
@@ -185,12 +186,17 @@ export function Hud({ label }: { label: string }) {
           />
         )}
         {chrome === "full" &&
-          (overlay === "terminal" || overlay === "http" || overlay === "agent") && (
+          (overlay === "terminal" ||
+            overlay === "http" ||
+            overlay === "agent" ||
+            overlay === "workbench") && (
             <Suspense fallback={<div className="panel panel--loading dim">loading panel…</div>}>
               {overlay === "terminal" ? (
                 <TerminalPanel onClose={() => setOverlay(null)} />
               ) : overlay === "http" ? (
                 <HttpPanel onClose={() => setOverlay(null)} />
+              ) : overlay === "workbench" ? (
+                <WorkbenchPanel onClose={() => setOverlay(null)} />
               ) : (
                 <AskPanel onClose={() => setOverlay(null)} />
               )}

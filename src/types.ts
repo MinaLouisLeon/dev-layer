@@ -212,3 +212,29 @@ export interface ShellProbe {
   /** True when it came from panels.shell rather than from probing. */
   configured: boolean;
 }
+
+/** Mirrors `mino-core`'s domain types (vendored from mino-workbench). */
+export type EntryKind = "file" | "directory" | "symlink" | "other";
+
+export interface DirEntry {
+  path: string;
+  name: string;
+  kind: EntryKind;
+  size: number;
+  modifiedMs: number | null;
+  readonly: boolean;
+  hidden: boolean;
+}
+
+export interface FilePayload {
+  path: string;
+  size: number;
+  modifiedMs: number | null;
+  encoding: "utf8" | "base64";
+  content: string;
+  extension: string | null;
+}
+
+export interface WorkbenchState {
+  root: string | null;
+}

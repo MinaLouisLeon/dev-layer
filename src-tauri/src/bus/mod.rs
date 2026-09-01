@@ -291,6 +291,50 @@ pub fn agent_reset(state: State<'_, AppState>) {
     state.agent.reset();
 }
 
+// ---------------------------------------------------------- workbench
+
+#[tauri::command]
+pub fn workbench_state(state: State<'_, AppState>) -> crate::workbench::WorkbenchState {
+    state.workbench.state()
+}
+
+/// Roots the workbench at a folder. Defaults to the home directory, which is
+/// what the panel asks for when it has no folder yet.
+#[tauri::command]
+pub async fn workbench_open(
+    app: AppHandle,
+    path: Option<String>,
+) -> Result<crate::workbench::WorkbenchState, String> {
+    let root = match path.map(|p| p.trim().to_string()).filter(|p| !p.is_empty()) {
+        Some(path) => path,
+        None => app
+            .path()
+            .home_dir()
+            .map_err(|e| e.to_string())?
+            .to_string_lossy()
+            .into_owned(),
+    };
+    app.state::<AppState>().workbench.open(root).await
+}
+
+#[tauri::command]
+pub async fn workbench_list_dir(
+    app: AppHandle,
+    path: String,
+) -> Result<Vec<mino_core::types::DirEntry>, String> {
+    let workbench = &app.state::<AppState>().workbench;
+    workbench.list_dir(path).await
+}
+
+#[tauri::command]
+pub async fn workbench_read_file(
+    app: AppHandle,
+    path: String,
+) -> Result<mino_core::types::FilePayload, String> {
+    let workbench = &app.state::<AppState>().workbench;
+    workbench.read_file(path).await
+}
+
 /// Restores the desktop and quits. The only intended way out, and the same
 /// path the global exit hotkey takes.
 #[tauri::command]

@@ -22,6 +22,7 @@ pub mod platform;
 pub mod safety;
 pub mod shell;
 pub mod wm;
+pub mod workbench;
 
 use tauri::{AppHandle, Manager, RunEvent};
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
@@ -34,6 +35,7 @@ use crate::metrics::MetricsStore;
 use crate::monitors::MonitorRegistry;
 use crate::panels::TerminalSessions;
 use crate::wm::WindowManager;
+use crate::workbench::Workbench;
 
 /// Shared, read-mostly application state.
 pub struct AppState {
@@ -45,6 +47,7 @@ pub struct AppState {
     pub wm: std::sync::Arc<WindowManager>,
     pub terminals: std::sync::Arc<TerminalSessions>,
     pub agent: AgentSession,
+    pub workbench: Workbench,
 }
 
 pub fn run() {
@@ -87,6 +90,10 @@ pub fn run() {
             bus::agent_ask,
             bus::agent_status,
             bus::agent_reset,
+            bus::workbench_state,
+            bus::workbench_open,
+            bus::workbench_list_dir,
+            bus::workbench_read_file,
             bus::shutdown,
         ])
         .setup(|app| {
@@ -126,6 +133,7 @@ fn start(app: &AppHandle) -> error::Result<()> {
         wm: std::sync::Arc::new(WindowManager::new(config.wm.clone())),
         terminals: std::sync::Arc::new(TerminalSessions::default()),
         agent: AgentSession::default(),
+        workbench: Workbench::default(),
     });
 
     // 1. Discover displays and put a HUD on each one.

@@ -271,6 +271,20 @@ Voice input is **not built**. WebView2 has no reliable speech recognition, so
 it needs a bundled local model (whisper.cpp) rather than a browser API — a
 milestone of its own rather than a detail of this one.
 
+## The workbench
+
+`WORK` opens [Mino Workbench](https://github.com/MinaLouisLeon/mino-workbench)
+inside dev-layer: a lazily-loaded file tree and a file viewer, rooted at a
+folder you choose. One app, one installer — the workbench is not a second
+program to install.
+
+Its `mino-core` crate is vendored into `src-tauri/crates/mino-core` (MIT, see
+that directory's `LICENSE`). Nothing in dev-layer touches the filesystem
+directly: every call goes through that crate's `Transport`, which means its
+path guard applies — a session is confined to the folder it was opened on —
+and the same panel will serve an SSH host once the remote target is wired
+through.
+
 ## Native panels
 
 Two tools live *inside* the HUD rather than as more windows to tile, on the

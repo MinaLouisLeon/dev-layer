@@ -3,12 +3,43 @@ name = "dev-layer"
 version = "0.1.0"
 description = "Fullscreen developer HUD that overlays Windows"
 edition = "2021"
-rust-version = "1.77"
+rust-version = "1.85"
 
 [lib]
 name = "dev_layer_lib"
 
+# mino-core is vendored from github.com/MinaLouisLeon/mino-workbench (MIT) so
+# the workbench ships inside dev-layer as one app and one installer, rather
+# than as a second program to install. See crates/mino-core/LICENSE.
+[workspace]
+members = ["crates/mino-core"]
+
+# Consumed only by the vendored crate, which declares these as workspace
+# inherits. dev-layer's own package sets its own values above.
+[workspace.package]
+version = "0.1.6"
+edition = "2021"
+rust-version = "1.85"
+license = "MIT"
+
+[workspace.dependencies]
+async-trait = "0.1.83"
+base64 = "0.22.1"
+portable-pty = "0.9"
+russh = "0.49.0"
+russh-sftp = "2.0.5"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+tokio = { version = "1", features = ["full"] }
+tokio-tungstenite = "0.24.0"
+tracing = "0.1"
+ts-rs = { version = "10.1.0", features = ["serde-json-impl", "no-serde-warnings"] }
+uuid = { version = "1", features = ["v4", "serde"] }
+which = "8"
+
 [dependencies]
+mino-core = { path = "crates/mino-core" }
 base64 = "0.23.1"
 ctrlc = "3.5.2"
 parking_lot = "0.12.5"
