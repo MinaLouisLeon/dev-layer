@@ -28,10 +28,12 @@ jobs:
       - uses: swatinem/rust-cache@v2
         with:
           workspaces: src-tauri -> target
-      # The only place the unit tests actually run: every other CI job is on
-      # Linux, where the Tauri dependency chain cannot build.
+      # The only place the tests actually run: every other CI job is on
+      # Linux, where the Tauri dependency chain cannot build. `--workspace` is
+      # load-bearing - without it cargo tests the root package alone and the
+      # vendored `mino-core` crate compiles but never runs a single test.
       - name: cargo test
-        run: cargo test --manifest-path src-tauri/Cargo.toml
+        run: cargo test --manifest-path src-tauri/Cargo.toml --workspace
 
   build:
     needs: test
