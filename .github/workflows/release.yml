@@ -57,27 +57,34 @@ jobs:
         shell: bash
         run: |
           version=$(node -p "require('./src-tauri/tauri.conf.json').version")
-          echo "version=$version" >> "$GITHUB_OUTPUT"
 
+          # Every branch writes every key: tauri-action parses `prerelease` as
+          # a strict YAML boolean and rejects an empty string, so an unset
+          # output fails the step before the build even starts.
           if [ "$GITHUB_REF_TYPE" = "tag" ]; then
             # A version tag is a permanent release.
-            {
-              echo "tag=$GITHUB_REF_NAME"
-              echo "name=dev-layer $GITHUB_REF_NAME"
-              echo "prerelease=false"
-            } >> "$GITHUB_OUTPUT"
+            tag="$GITHUB_REF_NAME"
+            name="dev-layer $GITHUB_REF_NAME"
+            prerelease=false
           elif [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
-            # Build only. An empty tag tells tauri-action not to publish.
-            echo "tag=" >> "$GITHUB_OUTPUT"
+            # Build only: an empty tag tells tauri-action not to publish.
+            tag=""
+            name=""
+            prerelease=false
           else
             # Rolling build of main. Tagged "nightly" rather than "main" so the
             # tag can never be confused with the branch of the same name.
-            {
-              echo "tag=nightly"
-              echo "name=dev-layer nightly (v$version)"
-              echo "prerelease=true"
-            } >> "$GITHUB_OUTPUT"
+            tag="nightly"
+            name="dev-layer nightly (v$version)"
+            prerelease=true
           fi
+
+          {
+            echo "version=$version"
+            echo "tag=$tag"
+            echo "name=$name"
+            echo "prerelease=$prerelease"
+          } >> "$GITHUB_OUTPUT"
 
       # tauri-action reuses an existing release rather than replacing it, and a
       # rolling tag would keep pointing at an old commit. Removing it first
