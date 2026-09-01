@@ -5,6 +5,8 @@
 //! AI/voice layer resolves natural language onto these same commands, so every
 //! new capability belongs here rather than in ad-hoc frontend logic.
 
+pub mod registry;
+
 use tauri::{AppHandle, Manager, State};
 
 use crate::apps::AppEntry;
@@ -254,6 +256,28 @@ pub fn http_history(app: AppHandle) -> Vec<HttpRequest> {
         .app_config_dir()
         .map(|dir| RequestHistory::load(&dir).entries)
         .unwrap_or_default()
+}
+
+// ------------------------------------------------------------- agent
+
+/// One natural-language turn. Progress arrives as `agent::event`; this returns
+/// the final answer text.
+#[tauri::command]
+pub async fn agent_ask(app: AppHandle, prompt: String) -> Result<String, String> {
+    if !app.state::<AppState>().config.agent.enabled {
+        return Err("the command layer is disabled in config".into());
+    }
+    crate::agent::run(app, prompt).await
+}
+
+#[tauri::command]
+pub fn agent_status(app: AppHandle) -> crate::agent::AgentStatus {
+    crate::agent::status(&app)
+}
+
+#[tauri::command]
+pub fn agent_reset(state: State<'_, AppState>) {
+    state.agent.reset();
 }
 
 /// Restores the desktop and quits. The only intended way out, and the same

@@ -15,6 +15,7 @@ pub struct Config {
     pub metrics: MetricsConfig,
     pub wm: WmConfig,
     pub panels: PanelsConfig,
+    pub agent: AgentConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -108,6 +109,38 @@ impl Default for HotkeyConfig {
             cycle_layout: "Ctrl+Alt+L".into(),
             toggle_float: "Ctrl+Alt+F".into(),
             retile: "Ctrl+Alt+R".into(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+pub struct AgentConfig {
+    pub enabled: bool,
+    /// Claude model for the command layer.
+    pub model: String,
+    /// Reasoning effort: low | medium | high | xhigh | max.
+    pub effort: String,
+    /// Ceiling on tool-use rounds in a single turn.
+    pub max_iterations: usize,
+    /// Allow commands that reach outside dev-layer's own UI — closing windows,
+    /// making network requests. Off by default: guarded tools are not even
+    /// shown to the model, so it cannot talk itself into one.
+    pub allow_guarded: bool,
+    /// Escape hatch only. Prefer the ANTHROPIC_API_KEY environment variable —
+    /// a key here sits in plaintext in the config file.
+    pub api_key: Option<String>,
+}
+
+impl Default for AgentConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            model: "claude-opus-5".into(),
+            effort: "high".into(),
+            max_iterations: 8,
+            allow_guarded: false,
+            api_key: None,
         }
     }
 }

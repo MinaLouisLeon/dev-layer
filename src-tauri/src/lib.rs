@@ -8,6 +8,7 @@
 //! Deliberately *not* here yet: metrics (m2), app catalog/dock (m3), the
 //! window manager (m4).
 
+pub mod agent;
 pub mod apps;
 pub mod bus;
 pub mod config;
@@ -25,6 +26,7 @@ pub mod wm;
 use tauri::{AppHandle, Manager, RunEvent};
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
 
+use crate::agent::AgentSession;
 use crate::apps::AppCatalog;
 use crate::config::Config;
 use crate::hud::HudManager;
@@ -42,6 +44,7 @@ pub struct AppState {
     pub apps: AppCatalog,
     pub wm: std::sync::Arc<WindowManager>,
     pub terminals: std::sync::Arc<TerminalSessions>,
+    pub agent: AgentSession,
 }
 
 pub fn run() {
@@ -80,6 +83,9 @@ pub fn run() {
             bus::terminal_close,
             bus::http_send,
             bus::http_history,
+            bus::agent_ask,
+            bus::agent_status,
+            bus::agent_reset,
             bus::shutdown,
         ])
         .setup(|app| {
@@ -118,6 +124,7 @@ fn start(app: &AppHandle) -> error::Result<()> {
         apps: AppCatalog::default(),
         wm: std::sync::Arc::new(WindowManager::new(config.wm.clone())),
         terminals: std::sync::Arc::new(TerminalSessions::default()),
+        agent: AgentSession::default(),
     });
 
     // 1. Discover displays and put a HUD on each one.

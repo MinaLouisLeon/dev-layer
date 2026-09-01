@@ -40,6 +40,7 @@ import type {
 // other monitor's HUD should not pay to parse it at startup.
 const TerminalPanel = lazy(() => import("../components/TerminalPanel"));
 const HttpPanel = lazy(() => import("../components/HttpPanel"));
+const AskPanel = lazy(() => import("../components/AskPanel"));
 
 export function Hud({ label }: { label: string }) {
   const [ctx, setCtx] = useState<HudContext | null>(null);
@@ -178,15 +179,18 @@ export function Hud({ label }: { label: string }) {
             }}
           />
         )}
-        {chrome === "full" && (overlay === "terminal" || overlay === "http") && (
-          <Suspense fallback={<div className="panel panel--loading dim">loading panel…</div>}>
-            {overlay === "terminal" ? (
-              <TerminalPanel onClose={() => setOverlay(null)} />
-            ) : (
-              <HttpPanel onClose={() => setOverlay(null)} />
-            )}
-          </Suspense>
-        )}
+        {chrome === "full" &&
+          (overlay === "terminal" || overlay === "http" || overlay === "agent") && (
+            <Suspense fallback={<div className="panel panel--loading dim">loading panel…</div>}>
+              {overlay === "terminal" ? (
+                <TerminalPanel onClose={() => setOverlay(null)} />
+              ) : overlay === "http" ? (
+                <HttpPanel onClose={() => setOverlay(null)} />
+              ) : (
+                <AskPanel onClose={() => setOverlay(null)} />
+              )}
+            </Suspense>
+          )}
       </div>
 
       <header className="rail rail--top">

@@ -1,6 +1,8 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type {
+  AgentEvent,
+  AgentStatus,
   AppEntry,
   HostInfo,
   HttpRequest,
@@ -108,3 +110,12 @@ export const httpSend = (request: HttpRequest) =>
   invoke<HttpResponse>("http_send", { request });
 
 export const httpHistory = () => invoke<HttpRequest[]>("http_history");
+
+export const agentAsk = (prompt: string) => invoke<string>("agent_ask", { prompt });
+
+export const agentStatus = () => invoke<AgentStatus>("agent_status");
+
+export const agentReset = () => invoke<void>("agent_reset");
+
+export const onAgentEvent = (cb: (event: AgentEvent) => void): Promise<UnlistenFn> =>
+  listen<AgentEvent>("agent::event", (e) => cb(e.payload));

@@ -7,7 +7,7 @@ It is a **layer**, not a shell replacement. `explorer.exe` keeps running, the
 Winlogon registry is never touched, and every change dev-layer makes to the
 desktop is undone on exit — including on crash.
 
-## Status: milestone 5 of 6
+## Status: milestone 6 of 6
 
 | # | Milestone | State |
 |---|---|---|
@@ -16,7 +16,7 @@ desktop is undone on exit — including on crash.
 | 3 | App catalog: Start Menu discovery, icons, dock | **done** |
 | 4 | Window manager: tiling, layouts, per-app rules | **done** |
 | 5 | Native panels: terminal, HTTP client | **done** |
-| 6 | Command bus + AI/voice layer | bus scaffolded |
+| 6 | Command bus + AI command layer | **done** (voice not built) |
 
 ## How apps end up "inside" the HUD
 
@@ -188,6 +188,49 @@ Known limits: windows of elevated (administrator) processes cannot be moved by
 a non-elevated dev-layer, and are left alone rather than retried. Chromium-based
 apps sometimes restore their own bounds; `Ctrl+Alt+R` re-tiles. Live DWM
 thumbnails for an overview mode are not built yet.
+
+## Command layer
+
+`ASK` puts a prompt in front of dev-layer's own commands. Claude is given the
+bus catalog as tools and runs a tool-use loop against it — the same capabilities
+the HUD's buttons call, which is why the bus was built in milestone 1.
+
+```
+› what's eating my cpu, and put this screen in columns
+  system_metrics → set_layout
+  rustc.exe is taking 24.6% — that's your cargo build, and memory is at 67%.
+  Switched this display to columns.
+```
+
+Set `ANTHROPIC_API_KEY` in the environment before starting (a key can go in
+`config.json` instead, but it sits there in plaintext).
+
+```json
+"agent": {
+  "enabled": true,
+  "model": "claude-opus-5",
+  "effort": "high",
+  "maxIterations": 8,
+  "allowGuarded": false,
+  "apiKey": null
+}
+```
+
+**Guarded commands are off by default.** Closing windows and making HTTP
+requests reach outside dev-layer's own UI, so they are not even shown to the
+model unless you set `allowGuarded` — a tool it cannot see is one it cannot
+talk itself into using. Everything else (launching apps, layouts, focus,
+telemetry, displays) is always available.
+
+**What leaves the machine:** your prompt, a short state summary (display list,
+open window *titles* and process names, CPU/memory/GPU figures, app count), and
+the results of any tools the model calls. Window titles routinely contain file
+paths and branch names — if that matters for a given session, close the panel
+or set `enabled: false`.
+
+Voice input is **not built**. WebView2 has no reliable speech recognition, so
+it needs a bundled local model (whisper.cpp) rather than a browser API — a
+milestone of its own rather than a detail of this one.
 
 ## Native panels
 

@@ -221,6 +221,47 @@ rather than filling the list, and never stores response bodies.
 every display would otherwise pay to parse it at startup for a panel only one
 of them will ever show.
 
+## 12. The command layer
+
+This is what the bus was for. `bus::registry` is a single catalog of typed
+capabilities — name, description, JSON schema — consumed by the HUD through
+Tauri commands and by the model as tool definitions. Adding a capability there
+gives it to both; there is no second list to keep in sync.
+
+Decisions worth keeping:
+
+* **Guarded by omission, not by refusal.** Commands that reach outside
+  dev-layer's UI (closing a window, making a network request) are filtered out
+  of the catalog unless `allowGuarded` is set. A tool the model cannot see is
+  one it cannot be argued into using — strictly better than a runtime refusal
+  it can retry against.
+* **Live state as a mid-conversation system message.** The static system
+  prompt and tool list stay byte-identical between turns, so they cache; the
+  volatile machine state (displays, window titles, usage) goes in a
+  `{"role": "system"}` entry appended after the user's message, which is where
+  the API allows it. Editing the top-level `system` each turn would invalidate
+  the cached prefix on every request.
+* **All tool results in one user message.** The API treats results split across
+  several messages as a signal to stop making parallel calls, so a turn that
+  runs three tools returns three `tool_result` blocks in a single message.
+* **Tool failures are results, not errors.** A failed dispatch comes back as
+  `tool_result` with `is_error: true`, so the model can apologise, retry, or
+  choose another tool. Raising would end the turn with nothing useful.
+* **Refusals are HTTP 200.** `stop_reason` is checked before reading content,
+  and server-side fallbacks are enabled so a policy decline re-runs on a
+  fallback model inside the same call rather than the turn simply stopping.
+* **The loop is bounded.** `maxIterations` caps tool rounds; the failure mode
+  of an unbounded agent loop is a bill, not an error message.
+* **Secrets stay out of logs.** The API key is resolved from the environment
+  (config is an escape hatch), and no request body is ever logged — it carries
+  both the key header and the user's prompt.
+
+Rust has no official Anthropic SDK, so this speaks the Messages API over HTTPS
+with `reqwest`, already present for the HTTP panel.
+
+Not built: voice. WebView2 has no dependable speech recognition, so it needs a
+bundled local model rather than a browser API.
+
 ## Module map
 
 ```
@@ -230,8 +271,9 @@ src-tauri/src/
 ├─ config.rs       config.json, defaults that never fail
 ├─ geometry.rs     Rect (physical) / Insets (logical)
 ├─ error.rs        error type, IPC-friendly conversion
+├─ agent/         Claude tool-use loop over the command catalog
 ├─ apps/          Start Menu scan, catalog, pins
-├─ bus/            all Tauri commands
+├─ bus/            all Tauri commands + the command catalog (registry.rs)
 ├─ metrics/        sampler thread, snapshot types, GPU backends
 ├─ monitors/       topology registry, diffing, watcher thread
 ├─ panels/         terminal sessions (PTY) and the HTTP client

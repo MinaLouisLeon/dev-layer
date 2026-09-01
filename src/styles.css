@@ -551,3 +551,55 @@ h2 { margin: 0; font-size: 10px; font-weight: 600; color: var(--dim); letter-spa
 }
 .http__resheaders summary { cursor: pointer; font-size: 10px; }
 .http__resheaders td { padding: 2px 8px 2px 0; font-size: 10px; max-width: 260px; }
+
+
+/* ----------------------------------------------------------- ask panel */
+.ask { flex-direction: column; gap: 10px; padding: 12px; }
+.ask__log {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding-right: 6px;
+}
+.ask__empty { display: flex; flex-direction: column; gap: 10px; max-width: 560px; }
+.ask__empty code { color: var(--fg); background: rgba(94, 234, 255, 0.08); padding: 1px 4px; }
+.ask__suggestions { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 5px; }
+.ask__suggestions button {
+  font: inherit; font-size: 10px; padding: 5px 9px;
+  color: var(--dim); background: transparent;
+  border: 1px solid var(--line-soft); cursor: pointer;
+}
+.ask__suggestions button:hover { color: var(--fg); border-color: var(--line); }
+
+.ask__you { margin: 0; color: var(--fg); font-size: 12px; }
+.ask__you b { color: var(--accent); margin-right: 4px; }
+/* Reasoning is context, not the answer: recessive by design. */
+.ask__thinking { margin: 0 0 0 14px; color: var(--dim); font-size: 10px; font-style: italic; opacity: 0.75; }
+.ask__text { margin: 0 0 0 14px; color: var(--fg); font-size: 12px; line-height: 1.6; }
+.ask__tool { margin: 0 0 0 14px; font-size: 10px; display: flex; gap: 8px; align-items: baseline; }
+.ask__toolname {
+  color: var(--bg); background: var(--line);
+  padding: 1px 6px; letter-spacing: 0.12em;
+}
+.ask__result { margin: 0 0 0 14px; font-size: 10px; color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ask__result.is-error { color: var(--crit); }
+.ask__error { margin: 0 0 0 14px; font-size: 11px; color: var(--crit); }
+
+.ask__form { display: flex; gap: 8px; }
+.ask__input {
+  flex: 1;
+  font: inherit;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  padding: 8px 10px;
+  color: var(--fg);
+  background: rgba(94, 234, 255, 0.05);
+  border: 1px solid var(--line-soft);
+  outline: none;
+}
+.ask__input:focus { border-color: var(--line); box-shadow: var(--glow); }
+.ask__input::placeholder { color: var(--dim); }

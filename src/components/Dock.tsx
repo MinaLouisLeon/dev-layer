@@ -1,12 +1,13 @@
 import { AppIcon } from "./AppIcon";
 import type { AppEntry } from "../types";
 
-export type Overlay = "launcher" | "terminal" | "http" | null;
+export type Overlay = "launcher" | "terminal" | "http" | "agent" | null;
 
 const PANELS: { kind: Exclude<Overlay, null>; label: string; hint: string }[] = [
   { kind: "launcher", label: "APPS", hint: "All applications" },
   { kind: "terminal", label: "TERM", hint: "Terminal session" },
   { kind: "http", label: "HTTP", hint: "HTTP client" },
+  { kind: "agent", label: "ASK", hint: "Command layer — natural language" },
 ];
 
 /** Pinned apps only. Everything else lives in the launcher. */

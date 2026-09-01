@@ -180,3 +180,21 @@ export interface HttpResponse {
   elapsedMs: number;
   finalUrl: string;
 }
+
+/** Mirrors `src-tauri/src/agent/`. */
+export type AgentEvent =
+  | { kind: "thinking"; text: string }
+  | { kind: "text"; text: string }
+  | { kind: "toolUse"; name: string; input: unknown }
+  | { kind: "toolResult"; name: string; ok: boolean; detail: string }
+  | { kind: "done"; turns: number }
+  | { kind: "error"; message: string };
+
+export interface AgentStatus {
+  enabled: boolean;
+  /** An API key was found, in the environment or config. */
+  configured: boolean;
+  model: string;
+  allowGuarded: boolean;
+  turns: number;
+}
