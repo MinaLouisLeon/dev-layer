@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type {
+  AppEntry,
   HostInfo,
   HudContext,
   MetricsSnapshot,
@@ -31,3 +32,15 @@ export const onMetrics = (
   cb: (snapshot: MetricsSnapshot) => void,
 ): Promise<UnlistenFn> =>
   listen<MetricsSnapshot>("metrics::tick", (e) => cb(e.payload));
+
+export const listApps = () => invoke<AppEntry[]>("list_apps");
+
+export const launchApp = (id: string) => invoke<void>("launch_app", { id });
+
+export const setAppPinned = (id: string, pinned: boolean) =>
+  invoke<AppEntry[]>("set_app_pinned", { id, pinned });
+
+export const refreshApps = () => invoke<void>("refresh_apps");
+
+export const onCatalog = (cb: (apps: AppEntry[]) => void): Promise<UnlistenFn> =>
+  listen<AppEntry[]>("apps::catalog", (e) => cb(e.payload));

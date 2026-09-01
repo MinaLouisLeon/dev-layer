@@ -7,6 +7,7 @@
 
 use tauri::{AppHandle, Manager, State};
 
+use crate::apps::AppEntry;
 use crate::config::Config;
 use crate::hud::{HudContext, LABEL_PREFIX};
 use crate::metrics::MetricsSnapshot;
@@ -52,6 +53,43 @@ pub fn latest_metrics(state: State<'_, AppState>) -> Option<MetricsSnapshot> {
 #[tauri::command]
 pub fn host_info() -> crate::metrics::HostInfo {
     crate::metrics::host_info()
+}
+
+/// Everything the dock and launcher can open. Empty until the background
+/// scan finishes; the `apps::catalog` event carries the filled-in list.
+#[tauri::command]
+pub fn list_apps(state: State<'_, AppState>) -> Vec<AppEntry> {
+    state.apps.entries()
+}
+
+/// Launches through the shell, so the shortcut's own arguments, working
+/// directory and elevation behaviour all apply.
+#[tauri::command]
+pub fn launch_app(id: String, state: State<'_, AppState>) -> Result<(), String> {
+    let entry = state
+        .apps
+        .get(&id)
+        .ok_or_else(|| format!("unknown app {id}"))?;
+    tracing::info!(app = %entry.name, "launching");
+
+    crate::platform::sys::launch(&entry.launch_path, "", None).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn set_app_pinned(app: AppHandle, id: String, pinned: bool) -> Result<Vec<AppEntry>, String> {
+    let config_dir = app.path().app_config_dir().map_err(|e| e.to_string())?;
+    let state = app.state::<AppState>();
+    state
+        .apps
+        .set_pinned(&id, pinned, &config_dir)
+        .ok_or_else(|| format!("unknown app {id}"))?;
+    Ok(state.apps.entries())
+}
+
+/// Rescans the Start Menu. Cheap on a warm icon cache, seconds on a cold one.
+#[tauri::command]
+pub fn refresh_apps(app: AppHandle) {
+    crate::apps::spawn_scan(app);
 }
 
 /// Restores the desktop and quits. The only intended way out, and the same

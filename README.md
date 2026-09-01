@@ -7,13 +7,13 @@ It is a **layer**, not a shell replacement. `explorer.exe` keeps running, the
 Winlogon registry is never touched, and every change dev-layer makes to the
 desktop is undone on exit — including on crash.
 
-## Status: milestone 2 of 6
+## Status: milestone 3 of 6
 
 | # | Milestone | State |
 |---|---|---|
 | 1 | Shell, per-monitor HUD windows, safe teardown | **done** |
 | 2 | Metrics: CPU / RAM / GPU / net gauges | **done** |
-| 3 | App catalog: Start Menu discovery, icons, dock | not started |
+| 3 | App catalog: Start Menu discovery, icons, dock | **done** |
 | 4 | Window manager: slots, layouts, DWM thumbnails | not started |
 | 5 | Native panels: terminal, REST client, git/docker | not started |
 | 6 | Command bus + AI/voice layer | bus scaffolded |
@@ -72,7 +72,7 @@ Written on first run to `%APPDATA%\dev.devlayer.hud\config.json`:
 ```json
 {
   "hud": {
-    "reserved": { "top": 34, "right": 0, "bottom": 34, "left": 280 },
+    "reserved": { "top": 34, "right": 0, "bottom": 92, "left": 280 },
     "reservedMinimal": { "top": 34, "right": 0, "bottom": 34, "left": 0 },
     "fullChromeOnSecondary": false
   },
@@ -116,6 +116,29 @@ Build without NVML (no NVIDIA hardware, smaller build):
 ```bash
 npm run tauri build -- --no-default-features
 ```
+
+## Applications
+
+The dock and launcher are populated by scanning both Start Menu trees (machine
+and user) on a background thread at startup: every `.lnk` is resolved through
+`IShellLink`, filtered down to real executables, de-duplicated by target, and
+its icon rendered once to a PNG cache.
+
+* **Launching** goes through the shell (`ShellExecuteW`) on the `.lnk` itself,
+  so the shortcut's own arguments, working directory and elevation behaviour
+  apply — exactly as if you had clicked it in the Start Menu.
+* **Icons** are cached under the app cache directory and served to the HUD over
+  Tauri's asset protocol, scoped at runtime to that one directory. Jumbo
+  (256 px) icons are cropped to their visible content, so the dock can size
+  them itself.
+* **Pins** live in `apps.json` beside the config. Recognized developer tools
+  are pinned by default; the moment you pin or unpin anything, your list
+  becomes authoritative and the defaults stop applying.
+* The first scan takes a few seconds while icons are rasterized. Later starts
+  reuse the cache. `RESCAN` in the launcher re-runs it.
+
+Not yet covered: UWP/Store apps (they live in the `AppsFolder` shell namespace
+rather than as `.lnk` files) and manually added entries.
 
 ## Multi-monitor
 

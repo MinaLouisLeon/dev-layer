@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { CoreBars } from "../components/CoreBars";
+import { Dock } from "../components/Dock";
+import { Launcher } from "../components/Launcher";
 import { Meter } from "../components/Meter";
 import { ProcessTable } from "../components/ProcessTable";
 import { Readout } from "../components/Ring";
@@ -7,19 +9,27 @@ import { Sparkline } from "../components/Sparkline";
 import {
   getHostInfo,
   hudContext,
+  launchApp,
+  listApps,
   listMonitors,
+  onCatalog,
   onMonitorsChanged,
+  refreshApps,
+  setAppPinned,
   shutdown,
 } from "../lib/api";
 import { bytes, duration, rate } from "../lib/format";
 import { useMetrics } from "../lib/useMetrics";
-import type { HostInfo, HudContext, MonitorInfo } from "../types";
+import type { AppEntry, HostInfo, HudContext, MonitorInfo } from "../types";
 
 export function Hud({ label }: { label: string }) {
   const [ctx, setCtx] = useState<HudContext | null>(null);
   const [monitors, setMonitors] = useState<MonitorInfo[]>([]);
   const [host, setHost] = useState<HostInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [apps, setApps] = useState<AppEntry[]>([]);
+  const [launcherOpen, setLauncherOpen] = useState(true);
+  const [notice, setNotice] = useState<string | null>(null);
   const [clock, setClock] = useState(() => new Date());
   // Insets are logical (CSS) pixels; the viewport is the only logical-pixel
   // measure of this monitor, since `bounds` is physical.
@@ -53,11 +63,29 @@ export function Hud({ label }: { label: string }) {
 
     load();
     getHostInfo().then(setHost).catch(() => {});
-    const un = onMonitorsChanged(load);
+    listApps().then(setApps).catch(() => {});
+    const unMonitors = onMonitorsChanged(load);
+    const unCatalog = onCatalog(setApps);
     return () => {
-      un.then((f) => f());
+      unMonitors.then((f) => f());
+      unCatalog.then((f) => f());
     };
   }, [label]);
+
+  const flash = (message: string) => {
+    setNotice(message);
+    window.setTimeout(() => setNotice(null), 4000);
+  };
+
+  const launch = (app: AppEntry) =>
+    launchApp(app.id)
+      .then(() => flash(`launched ${app.name}`))
+      .catch((e) => flash(String(e)));
+
+  const togglePin = (app: AppEntry) =>
+    setAppPinned(app.id, !app.pinned)
+      .then(setApps)
+      .catch((e) => flash(String(e)));
 
   if (error) return <div className="hud hud--error">topology error :: {error}</div>;
   if (!ctx) return <div className="hud" />;
@@ -91,6 +119,18 @@ export function Hud({ label }: { label: string }) {
           WINDOW REGION · {viewport.width - reserved.left - reserved.right} ×{" "}
           {viewport.height - reserved.top - reserved.bottom}
         </div>
+        {chrome === "full" && launcherOpen && (
+          <Launcher
+            apps={apps}
+            onLaunch={launch}
+            onTogglePin={togglePin}
+            onClose={() => setLauncherOpen(false)}
+            onRefresh={() => {
+              refreshApps();
+              flash("rescanning Start Menu…");
+            }}
+          />
+        )}
       </div>
 
       <header className="rail rail--top">
@@ -180,16 +220,31 @@ export function Hud({ label }: { label: string }) {
       </aside>
 
       <footer className="rail rail--bottom">
-        <span className="dim">
-          {systemDisk
-            ? `${systemDisk.mount} ${bytes(systemDisk.used)} / ${bytes(systemDisk.total)}`
-            : "disk —"}
-        </span>
-        <span className="dim">up {duration(snapshot?.uptimeSecs ?? 0)}</span>
-        <span className="dim">
-          {snapshot ? `sampled ${new Date(snapshot.timestampMs).toLocaleTimeString([], { hour12: false })}` : "waiting for sampler…"}
-        </span>
-        <span className="spacer" />
+        <div className="status">
+          <span className="dim">
+            {systemDisk
+              ? `${systemDisk.mount} ${bytes(systemDisk.used)} / ${bytes(systemDisk.total)}`
+              : "disk —"}
+          </span>
+          <span className="dim">up {duration(snapshot?.uptimeSecs ?? 0)}</span>
+          <span className={notice ? "notice" : "dim"}>
+            {notice ??
+              (snapshot
+                ? `sampled ${new Date(snapshot.timestampMs).toLocaleTimeString([], { hour12: false })}`
+                : "waiting for sampler…")}
+          </span>
+        </div>
+
+        {chrome === "full" && (
+          <Dock
+            apps={apps.filter((a) => a.pinned)}
+            onLaunch={launch}
+            onUnpin={togglePin}
+            onOpenLauncher={() => setLauncherOpen((open) => !open)}
+            launcherOpen={launcherOpen}
+          />
+        )}
+
         <button className="exit" onClick={() => shutdown()}>
           SAFE EXIT
         </button>

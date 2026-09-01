@@ -8,6 +8,7 @@
 //! Deliberately *not* here yet: metrics (m2), app catalog/dock (m3), the
 //! window manager (m4).
 
+pub mod apps;
 pub mod bus;
 pub mod config;
 pub mod error;
@@ -22,6 +23,7 @@ pub mod shell;
 use tauri::{AppHandle, Manager, RunEvent};
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
 
+use crate::apps::AppCatalog;
 use crate::config::Config;
 use crate::hud::HudManager;
 use crate::metrics::MetricsStore;
@@ -33,6 +35,7 @@ pub struct AppState {
     pub monitors: MonitorRegistry,
     pub hud: HudManager,
     pub metrics: MetricsStore,
+    pub apps: AppCatalog,
 }
 
 pub fn run() {
@@ -50,6 +53,10 @@ pub fn run() {
             bus::refresh_monitors,
             bus::latest_metrics,
             bus::host_info,
+            bus::list_apps,
+            bus::launch_app,
+            bus::set_app_pinned,
+            bus::refresh_apps,
             bus::shutdown,
         ])
         .setup(|app| {
@@ -85,6 +92,7 @@ fn start(app: &AppHandle) -> error::Result<()> {
         monitors: MonitorRegistry::default(),
         hud: HudManager::default(),
         metrics: MetricsStore::default(),
+        apps: AppCatalog::default(),
     });
 
     // 1. Discover displays and put a HUD on each one.
@@ -103,10 +111,32 @@ fn start(app: &AppHandle) -> error::Result<()> {
     // 4. Telemetry: the HUD's reason to exist.
     metrics::spawn_sampler(app.clone(), config.metrics.clone())?;
 
-    // 5. The escape hatch, available even if the HUD stops responding.
+    // 5. Discover installed applications in the background; the dock fills in
+    //    when the scan lands rather than delaying first paint.
+    app.state::<AppState>().apps.load_preferences(&config_dir);
+    allow_icon_cache(app)?;
+    apps::spawn_scan(app.clone());
+
+    // 6. The escape hatch, available even if the HUD stops responding.
     register_exit_hotkey(app, &config)?;
 
     tracing::info!(exit = %config.hotkeys.exit, "dev-layer ready");
+    Ok(())
+}
+
+/// Icons are served to the HUD over the asset protocol, which is deny-by-default;
+/// grant exactly the cache directory the scanner writes to.
+fn allow_icon_cache(app: &AppHandle) -> error::Result<()> {
+    let icon_dir = app
+        .path()
+        .app_cache_dir()
+        .map_err(|e| error::Error::Config(e.to_string()))?
+        .join("icons");
+    std::fs::create_dir_all(&icon_dir).map_err(|e| error::Error::Config(e.to_string()))?;
+
+    app.asset_protocol_scope()
+        .allow_directory(&icon_dir, false)
+        .map_err(|e| error::Error::Config(format!("icon cache scope: {e}")))?;
     Ok(())
 }
 

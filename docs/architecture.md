@@ -113,6 +113,37 @@ Sparklines are line-only. An area fill under a near-constant series (memory
 sits at a stable percentage for hours) reads as a magnitude bar rather than a
 trend, which is the wrong claim.
 
+## 9. The application catalog
+
+Discovery is a background thread, not a startup step: COM initialization, two
+directory walks, `IShellLink` resolution per shortcut and icon rasterization
+together take seconds on a machine with a lot installed. The HUD paints
+immediately and the dock fills in when the scan lands (`apps::catalog`).
+
+Decisions worth keeping:
+
+* **Identity is the launch path**, hashed. Not the scan index (shifts), not the
+  display name (duplicates across vendors). Pins therefore survive rescans.
+* **Launch through the shell**, on the `.lnk` rather than the resolved target.
+  Re-implementing argument and working-directory handling would only diverge
+  from what the Start Menu does — including elevation prompts, which is
+  behaviour we specifically do not want to reinvent.
+* **Icons are rendered once.** The shell hands back a 256 px HICON; we convert
+  BGRA to RGBA, crop the transparent padding jumbo icons come with, and write a
+  PNG keyed by entry id. Serving them over the asset protocol (scoped to that
+  one directory) keeps them out of IPC entirely and lets the webview cache them.
+* **Defaults stop applying once the user chooses.** `AppPreferences.configured`
+  flips on the first pin or unpin and the current defaults are frozen into the
+  list, so unpinning one tool cannot resurrect it — or re-pin the others — on
+  the next scan.
+* **Only executables.** Start Menus are full of `.url`, `.chm` and uninstaller
+  shortcuts; entries are filtered to `.exe` targets that exist on disk, minus a
+  name blocklist for documentation shortcuts.
+
+Known gap: UWP/Store apps are not enumerated — they are not `.lnk` files but
+entries in the `AppsFolder` shell namespace, needing `IShellItem` enumeration
+and AUMID launching. Worth adding when something you actually use lives there.
+
 ## Module map
 
 ```
@@ -122,12 +153,13 @@ src-tauri/src/
 ├─ config.rs       config.json, defaults that never fail
 ├─ geometry.rs     Rect (physical) / Insets (logical)
 ├─ error.rs        error type, IPC-friendly conversion
+├─ apps/          Start Menu scan, catalog, pins
 ├─ bus/            all Tauri commands
 ├─ metrics/        sampler thread, snapshot types, GPU backends
 ├─ monitors/       topology registry, diffing, watcher thread
 ├─ hud/            per-monitor HUD windows, reserved-region contract
 ├─ shell/          reversible shell mutation (taskbar auto-hide)
-└─ platform/       win.rs (Win32) | stub.rs (everything else)
+└─ platform/       win/ (display, shell, apps) | stub.rs (everything else)
 ```
 
 Startup order in `lib.rs::start` is deliberate: discover displays → put HUDs up

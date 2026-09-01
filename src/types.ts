@@ -109,3 +109,15 @@ export interface HostInfo {
   logicalCores: number;
   totalMemory: number;
 }
+
+/** Mirrors `src-tauri/src/apps/`. */
+export interface AppEntry {
+  id: string;
+  name: string;
+  launchPath: string;
+  target: string | null;
+  /** Absolute path to the cached PNG; needs convertFileSrc() to render. */
+  icon: string | null;
+  isDevTool: boolean;
+  pinned: boolean;
+}

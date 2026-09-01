@@ -40,6 +40,39 @@ pub fn spawn_display_notifier(_tx: Sender<()>) -> Result<DisplayNotifier> {
     Ok(DisplayNotifier)
 }
 
+/// COM has no meaning off Windows; the guard exists so callers stay uniform.
+pub struct ComGuard;
+
+impl ComGuard {
+    pub fn new() -> Result<Self> {
+        Ok(Self)
+    }
+}
+
+pub struct Shortcut {
+    pub target: std::path::PathBuf,
+    pub arguments: String,
+    pub working_dir: Option<std::path::PathBuf>,
+}
+
+pub fn resolve_shortcut(_lnk: &std::path::Path) -> Result<Shortcut> {
+    Err(crate::error::Error::Platform(
+        "shortcuts are Windows-only".into(),
+    ))
+}
+
+pub fn extract_icon_png(_path: &std::path::Path) -> Result<Vec<u8>> {
+    Err(crate::error::Error::Platform(
+        "icon extraction is Windows-only".into(),
+    ))
+}
+
+pub fn launch(_path: &std::path::Path, _args: &str, _dir: Option<&std::path::Path>) -> Result<()> {
+    Err(crate::error::Error::Platform(
+        "launching is Windows-only".into(),
+    ))
+}
+
 pub fn taskbar_state() -> u32 {
     0
 }
