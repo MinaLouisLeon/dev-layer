@@ -13,6 +13,7 @@ pub struct Config {
     pub shell: ShellConfig,
     pub hotkeys: HotkeyConfig,
     pub metrics: MetricsConfig,
+    pub wm: WmConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -91,13 +92,82 @@ impl Default for ShellConfig {
 pub struct HotkeyConfig {
     /// Global escape hatch: restores the shell and exits, from anywhere.
     pub exit: String,
+    /// Cycles the layout on the monitor holding the focused window.
+    pub cycle_layout: String,
+    /// Takes the focused window in or out of tiling.
+    pub toggle_float: String,
+    /// Forces a re-tile, for when an app has fought its way out of place.
+    pub retile: String,
 }
 
 impl Default for HotkeyConfig {
     fn default() -> Self {
         Self {
             exit: "Ctrl+Alt+Shift+Q".into(),
+            cycle_layout: "Ctrl+Alt+L".into(),
+            toggle_float: "Ctrl+Alt+F".into(),
+            retile: "Ctrl+Alt+R".into(),
         }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+pub struct WmConfig {
+    /// Tiling on or off. Off leaves every window exactly where it is.
+    pub enabled: bool,
+    /// Space between tiles, in physical pixels.
+    pub gap: i32,
+    pub default_layout: crate::wm::LayoutKind,
+    /// Share of the region the main pane takes in MainStack.
+    pub main_ratio: f32,
+    /// Never managed, never listed: shell surfaces and system dialogs.
+    pub ignore_processes: Vec<String>,
+    /// Managed but never tiled - utilities that are useless at tile size.
+    pub float_processes: Vec<String>,
+}
+
+impl Default for WmConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            gap: 8,
+            default_layout: crate::wm::LayoutKind::MainStack,
+            main_ratio: 0.6,
+            ignore_processes: [
+                "explorer.exe",
+                "ApplicationFrameHost.exe",
+                "SystemSettings.exe",
+                "TextInputHost.exe",
+                "ShellExperienceHost.exe",
+                "SearchHost.exe",
+                "StartMenuExperienceHost.exe",
+                "LockApp.exe",
+                "PickerHost.exe",
+                "SecurityHealthSystray.exe",
+            ]
+            .iter()
+            .map(|s| s.to_string())
+            .collect(),
+            float_processes: ["Taskmgr.exe", "magnify.exe", "SnippingTool.exe", "mmc.exe"]
+                .iter()
+                .map(|s| s.to_string())
+                .collect(),
+        }
+    }
+}
+
+impl WmConfig {
+    pub fn is_ignored(&self, process: &str) -> bool {
+        self.ignore_processes
+            .iter()
+            .any(|p| p.eq_ignore_ascii_case(process))
+    }
+
+    pub fn floats_by_default(&self, process: &str) -> bool {
+        self.float_processes
+            .iter()
+            .any(|p| p.eq_ignore_ascii_case(process))
     }
 }
 

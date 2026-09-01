@@ -7,14 +7,14 @@ It is a **layer**, not a shell replacement. `explorer.exe` keeps running, the
 Winlogon registry is never touched, and every change dev-layer makes to the
 desktop is undone on exit — including on crash.
 
-## Status: milestone 3 of 6
+## Status: milestone 4 of 6
 
 | # | Milestone | State |
 |---|---|---|
 | 1 | Shell, per-monitor HUD windows, safe teardown | **done** |
 | 2 | Metrics: CPU / RAM / GPU / net gauges | **done** |
 | 3 | App catalog: Start Menu discovery, icons, dock | **done** |
-| 4 | Window manager: slots, layouts, DWM thumbnails | not started |
+| 4 | Window manager: tiling, layouts, per-app rules | **done** |
 | 5 | Native panels: terminal, REST client, git/docker | not started |
 | 6 | Command bus + AI/voice layer | bus scaffolded |
 
@@ -139,6 +139,55 @@ its icon rendered once to a PNG cache.
 
 Not yet covered: UWP/Store apps (they live in the `AppsFolder` shell namespace
 rather than as `.lnk` files) and manually added entries.
+
+## Window management
+
+Launched apps stay real, independent top-level windows; dev-layer positions
+them into the region the HUD reserves. Nothing is reparented, so nothing
+destabilizes — see [docs/architecture.md](docs/architecture.md) for why.
+
+| Layout | Shape |
+|---|---|
+| `mainStack` (default) | one large pane, the rest stacked beside it |
+| `columns` | equal vertical columns |
+| `grid` | roughly square; a short final row stretches |
+| `monocle` | one window at a time, full region |
+| `float` | tiling off for that display |
+
+Layout is **per monitor**, so a 4-display setup can tile the main screen and
+leave a reference display free.
+
+| Hotkey | Action |
+|---|---|
+| `Ctrl+Alt+Shift+Q` | exit and restore everything |
+| `Ctrl+Alt+L` | cycle layout on the focused monitor |
+| `Ctrl+Alt+F` | float / unfloat the focused window |
+| `Ctrl+Alt+R` | force a re-tile |
+
+Only the exit hotkey is required; if another app already owns one of the
+others, dev-layer logs it and starts without that binding.
+
+Per-app rules live in `config.json`:
+
+```json
+"wm": {
+  "enabled": true,
+  "gap": 8,
+  "defaultLayout": "mainStack",
+  "mainRatio": 0.6,
+  "ignoreProcesses": ["explorer.exe", "SearchHost.exe", "..."],
+  "floatProcesses": ["Taskmgr.exe", "SnippingTool.exe", "..."]
+}
+```
+
+**Every window dev-layer moves has its original geometry recorded first**, and
+it is put back on exit — including on panic, on Ctrl-C, and when you turn
+tiling off from the HUD.
+
+Known limits: windows of elevated (administrator) processes cannot be moved by
+a non-elevated dev-layer, and are left alone rather than retried. Chromium-based
+apps sometimes restore their own bounds; `Ctrl+Alt+R` re-tiles. Live DWM
+thumbnails for an overview mode are not built yet.
 
 ## Multi-monitor
 

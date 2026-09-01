@@ -19,6 +19,7 @@ pub mod monitors;
 pub mod platform;
 pub mod safety;
 pub mod shell;
+pub mod wm;
 
 use tauri::{AppHandle, Manager, RunEvent};
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
@@ -28,6 +29,7 @@ use crate::config::Config;
 use crate::hud::HudManager;
 use crate::metrics::MetricsStore;
 use crate::monitors::MonitorRegistry;
+use crate::wm::WindowManager;
 
 /// Shared, read-mostly application state.
 pub struct AppState {
@@ -36,6 +38,7 @@ pub struct AppState {
     pub hud: HudManager,
     pub metrics: MetricsStore,
     pub apps: AppCatalog,
+    pub wm: std::sync::Arc<WindowManager>,
 }
 
 pub fn run() {
@@ -57,6 +60,17 @@ pub fn run() {
             bus::launch_app,
             bus::set_app_pinned,
             bus::refresh_apps,
+            bus::list_windows,
+            bus::window_layouts,
+            bus::set_window_layout,
+            bus::cycle_window_layout,
+            bus::focus_window,
+            bus::toggle_window_float,
+            bus::promote_window,
+            bus::close_window,
+            bus::set_wm_enabled,
+            bus::retile,
+            bus::set_hud_overlay,
             bus::shutdown,
         ])
         .setup(|app| {
@@ -93,6 +107,7 @@ fn start(app: &AppHandle) -> error::Result<()> {
         hud: HudManager::default(),
         metrics: MetricsStore::default(),
         apps: AppCatalog::default(),
+        wm: std::sync::Arc::new(WindowManager::new(config.wm.clone())),
     });
 
     // 1. Discover displays and put a HUD on each one.
@@ -117,10 +132,23 @@ fn start(app: &AppHandle) -> error::Result<()> {
     allow_icon_cache(app)?;
     apps::spawn_scan(app.clone());
 
-    // 6. The escape hatch, available even if the HUD stops responding.
-    register_exit_hotkey(app, &config)?;
+    // 6. Take over window placement. The restore action is registered *before*
+    //    the watcher, so teardown runs in the right order: stop watching, then
+    //    put every window back.
+    {
+        let manager = app.state::<AppState>().wm.clone();
+        safety::register("restore windows", move || manager.restore_all());
+    }
+    wm::spawn_watcher(app.clone())?;
 
-    tracing::info!(exit = %config.hotkeys.exit, "dev-layer ready");
+    // 7. The escape hatch, available even if the HUD stops responding.
+    register_hotkeys(app, &config)?;
+
+    tracing::info!(
+        exit = %config.hotkeys.exit,
+        cycle_layout = %config.hotkeys.cycle_layout,
+        "dev-layer ready"
+    );
     Ok(())
 }
 
@@ -140,21 +168,72 @@ fn allow_icon_cache(app: &AppHandle) -> error::Result<()> {
     Ok(())
 }
 
-fn register_exit_hotkey(app: &AppHandle, config: &Config) -> error::Result<()> {
-    let shortcut: Shortcut = config.hotkeys.exit.parse().map_err(|e| {
-        error::Error::Config(format!("bad exit hotkey {:?}: {e}", config.hotkeys.exit))
+fn register_hotkeys(app: &AppHandle, config: &Config) -> error::Result<()> {
+    // The exit hotkey is the one that must never fail to register: it is the
+    // way out if anything else misbehaves.
+    bind(app, &config.hotkeys.exit, "exit", |app| {
+        tracing::info!("exit hotkey pressed");
+        shutdown(app);
     })?;
+
+    // The rest are conveniences; a clash with another app's binding should not
+    // stop dev-layer from starting.
+    let optional: [(&str, fn(&AppHandle)); 3] = [
+        (&config.hotkeys.cycle_layout, |app| {
+            if let Some(monitor) = active_monitor(app) {
+                let kind = app.state::<AppState>().wm.cycle_layout(&monitor);
+                tracing::info!(?kind, monitor, "layout cycled");
+                wm::retile(app);
+            }
+        }),
+        (&config.hotkeys.toggle_float, |app| {
+            if let Some(id) = platform::sys::foreground_window() {
+                app.state::<AppState>().wm.toggle_float(id as i64);
+                wm::retile(app);
+            }
+        }),
+        (&config.hotkeys.retile, |app| wm::retile(app)),
+    ];
+
+    for (binding, action) in optional {
+        if let Err(e) = bind(app, binding, "window manager", action) {
+            tracing::warn!(binding, error = %e, "hotkey unavailable; continuing without it");
+        }
+    }
+    Ok(())
+}
+
+fn bind(app: &AppHandle, binding: &str, what: &str, action: fn(&AppHandle)) -> error::Result<()> {
+    let shortcut: Shortcut = binding
+        .parse()
+        .map_err(|e| error::Error::Config(format!("bad {what} hotkey {binding:?}: {e}")))?;
 
     app.global_shortcut()
         .on_shortcut(shortcut, move |app, _shortcut, event| {
             if event.state == ShortcutState::Pressed {
-                tracing::info!("exit hotkey pressed");
-                shutdown(app);
+                action(app);
             }
         })
-        .map_err(|e| error::Error::Platform(format!("could not register exit hotkey: {e}")))?;
+        .map_err(|e| error::Error::Platform(format!("could not register {what} hotkey: {e}")))
+}
 
-    Ok(())
+/// The monitor holding the focused window, falling back to the primary.
+fn active_monitor(app: &AppHandle) -> Option<String> {
+    let state = app.state::<AppState>();
+    state
+        .wm
+        .windows()
+        .iter()
+        .find(|w| w.focused)
+        .map(|w| w.monitor_id.clone())
+        .or_else(|| {
+            state
+                .monitors
+                .snapshot()
+                .into_iter()
+                .find(|m| m.is_primary)
+                .map(|m| m.id)
+        })
 }
 
 /// Single shutdown path: restore everything we changed, then exit.

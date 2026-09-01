@@ -4,9 +4,12 @@ import type {
   AppEntry,
   HostInfo,
   HudContext,
+  LayoutKind,
+  ManagedWindow,
   MetricsSnapshot,
   MonitorChange,
   MonitorInfo,
+  MonitorLayout,
 } from "../types";
 
 export const listMonitors = () => invoke<MonitorInfo[]>("list_monitors");
@@ -44,3 +47,34 @@ export const refreshApps = () => invoke<void>("refresh_apps");
 
 export const onCatalog = (cb: (apps: AppEntry[]) => void): Promise<UnlistenFn> =>
   listen<AppEntry[]>("apps::catalog", (e) => cb(e.payload));
+
+export const listWindows = () => invoke<ManagedWindow[]>("list_windows");
+
+export const windowLayouts = () => invoke<MonitorLayout[]>("window_layouts");
+
+export const setWindowLayout = (monitorId: string, kind: LayoutKind) =>
+  invoke<void>("set_window_layout", { monitorId, kind });
+
+export const focusWindow = (id: number) => invoke<void>("focus_window", { id });
+
+export const toggleWindowFloat = (id: number) =>
+  invoke<boolean>("toggle_window_float", { id });
+
+export const promoteWindow = (id: number) => invoke<void>("promote_window", { id });
+
+export const closeWindow = (id: number) => invoke<void>("close_window", { id });
+
+export const setWmEnabled = (enabled: boolean) =>
+  invoke<void>("set_wm_enabled", { enabled });
+
+/**
+ * The HUD sits below every app window, so any panel opened over the window
+ * region has to be lifted first or it is simply invisible.
+ */
+export const setHudOverlay = (label: string, on: boolean) =>
+  invoke<void>("set_hud_overlay", { label, on });
+
+export const onWindows = (
+  cb: (windows: ManagedWindow[]) => void,
+): Promise<UnlistenFn> =>
+  listen<ManagedWindow[]>("wm::windows", (e) => cb(e.payload));

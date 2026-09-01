@@ -121,3 +121,27 @@ export interface AppEntry {
   isDevTool: boolean;
   pinned: boolean;
 }
+
+/** Mirrors `src-tauri/src/wm/`. */
+export type LayoutKind = "mainStack" | "columns" | "grid" | "monocle" | "float";
+
+export interface ManagedWindow {
+  /** Native window handle. Unique while the window lives. */
+  id: number;
+  title: string;
+  process: string;
+  monitorId: string;
+  floating: boolean;
+  focused: boolean;
+  minimized: boolean;
+  /** Physical, virtual-desktop coordinates. */
+  rect: Rect;
+  slot: number | null;
+}
+
+export interface MonitorLayout {
+  monitorId: string;
+  kind: LayoutKind;
+  region: Rect;
+  windowCount: number;
+}

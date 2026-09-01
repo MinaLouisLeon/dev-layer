@@ -12,6 +12,7 @@ use crate::config::Config;
 use crate::hud::{HudContext, LABEL_PREFIX};
 use crate::metrics::MetricsSnapshot;
 use crate::monitors::MonitorInfo;
+use crate::wm::{LayoutKind, ManagedWindow, MonitorLayout};
 use crate::AppState;
 
 #[tauri::command]
@@ -90,6 +91,95 @@ pub fn set_app_pinned(app: AppHandle, id: String, pinned: bool) -> Result<Vec<Ap
 #[tauri::command]
 pub fn refresh_apps(app: AppHandle) {
     crate::apps::spawn_scan(app);
+}
+
+// ------------------------------------------------------------ window manager
+
+#[tauri::command]
+pub fn list_windows(state: State<'_, AppState>) -> Vec<ManagedWindow> {
+    state.wm.windows()
+}
+
+#[tauri::command]
+pub fn window_layouts(state: State<'_, AppState>) -> Vec<MonitorLayout> {
+    state.wm.layouts()
+}
+
+#[tauri::command]
+pub fn set_window_layout(app: AppHandle, monitor_id: String, kind: LayoutKind) {
+    app.state::<AppState>().wm.set_layout(&monitor_id, kind);
+    crate::wm::retile(&app);
+}
+
+#[tauri::command]
+pub fn cycle_window_layout(app: AppHandle, monitor_id: String) -> LayoutKind {
+    let kind = app.state::<AppState>().wm.cycle_layout(&monitor_id);
+    crate::wm::retile(&app);
+    kind
+}
+
+#[tauri::command]
+pub fn focus_window(id: i64, state: State<'_, AppState>) -> Result<(), String> {
+    state.wm.set_focused(Some(id));
+    crate::platform::sys::focus_window(id as isize).map_err(|e| e.to_string())
+}
+
+/// Takes a window out of tiling (restoring where the user had it) or back in.
+#[tauri::command]
+pub fn toggle_window_float(app: AppHandle, id: i64) -> Result<bool, String> {
+    let floating = app
+        .state::<AppState>()
+        .wm
+        .toggle_float(id)
+        .ok_or_else(|| format!("unknown window {id}"))?;
+    crate::wm::retile(&app);
+    Ok(floating)
+}
+
+/// Moves a window to the front of the tiling order — the main pane.
+#[tauri::command]
+pub fn promote_window(app: AppHandle, id: i64) {
+    app.state::<AppState>().wm.promote(id);
+    crate::wm::retile(&app);
+}
+
+#[tauri::command]
+pub fn close_window(id: i64) -> Result<(), String> {
+    crate::platform::sys::close_window(id as isize).map_err(|e| e.to_string())
+}
+
+/// Turning tiling off restores every window we moved, immediately.
+#[tauri::command]
+pub fn set_wm_enabled(app: AppHandle, enabled: bool) {
+    app.state::<AppState>().wm.set_enabled(enabled);
+    crate::wm::retile(&app);
+}
+
+#[tauri::command]
+pub fn retile(app: AppHandle) {
+    crate::wm::retile(&app);
+}
+
+/// Lifts one HUD window above the tiled apps, for the launcher and other
+/// panels — the HUD normally sits *below* every app window, so an overlay
+/// opened down there would be invisible.
+#[tauri::command]
+pub fn set_hud_overlay(app: AppHandle, label: String, on: bool) -> Result<(), String> {
+    let window = app
+        .get_webview_window(&label)
+        .ok_or_else(|| format!("no window {label}"))?;
+
+    if on {
+        window.set_always_on_top(true).map_err(|e| e.to_string())?;
+        // Focus so the launcher's search field can actually receive typing.
+        let _ = window.set_focus();
+    } else {
+        window.set_always_on_top(false).map_err(|e| e.to_string())?;
+        window
+            .set_always_on_bottom(true)
+            .map_err(|e| e.to_string())?;
+    }
+    Ok(())
 }
 
 /// Restores the desktop and quits. The only intended way out, and the same

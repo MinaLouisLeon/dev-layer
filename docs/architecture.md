@@ -144,6 +144,49 @@ Known gap: UWP/Store apps are not enumerated — they are not `.lnk` files but
 entries in the `AppsFolder` shell namespace, needing `IShellItem` enumeration
 and AUMID launching. Worth adding when something you actually use lives there.
 
+## 10. The window manager
+
+The reconcile loop is the whole design: enumerate every window, assign each to
+a monitor, ask the pure layout engine for rectangles, apply them. Events from
+`SetWinEventHook` and a 2-second poll both funnel into it, debounced.
+
+**Terminating the feedback loop.** Our own `SetWindowPos` calls generate the
+same location-change events we listen to. The loop terminates because
+`WindowManager::place` remembers the last rectangle it *asked for* per window
+and skips a repeat. That also handles the nastier case: a window with a
+minimum size that can never reach its target would otherwise be re-issued the
+same move forever, one event per attempt.
+
+**Restore is an invariant, not a feature.** A window's geometry is recorded
+before the first time we move it, and `restore_all` is registered with
+`safety` — so a panic puts every window back. Registration order matters and is
+deliberate: the restore action is registered *before* the watcher, so teardown
+(which runs in reverse) stops watching first and only then restores. Restoring
+while the watcher was still live would race a re-tile against the restore.
+
+**One source of truth for reserved space.** The tiling region is the monitor
+bounds inset by the HUD's own per-monitor context (`HudManager::context`),
+converted to physical pixels. The chrome and the tiling cannot disagree about
+how much room the HUD takes, because they read the same number.
+
+**Ordering is stable.** New windows are appended to the tiling order rather
+than promoted, so opening something does not shuffle the window you are working
+in; `promote` moves one to the main pane explicitly.
+
+**Windows belong to the monitor holding their centre**, with an offscreen
+fallback to the primary — a window left behind by an unplugged display is
+adopted rather than lost.
+
+The HUD sits *below* app windows, which makes any panel drawn over the window
+region invisible once something is tiled there. The launcher therefore lifts
+its HUD window above the stack while open (`set_hud_overlay`) and drops it back
+on close.
+
+Deferred: live DWM thumbnails. `DwmRegisterThumbnail` renders into a region of
+*our* window, and ours is always-on-bottom — so thumbnails only make sense
+alongside an overview mode that raises the HUD, which is a feature of its own
+rather than a detail of this one.
+
 ## Module map
 
 ```
@@ -159,6 +202,7 @@ src-tauri/src/
 ├─ monitors/       topology registry, diffing, watcher thread
 ├─ hud/            per-monitor HUD windows, reserved-region contract
 ├─ shell/          reversible shell mutation (taskbar auto-hide)
+├─ wm/             window manager: pure layout engine, reconcile loop
 └─ platform/       win/ (display, shell, apps) | stub.rs (everything else)
 ```
 

@@ -2,6 +2,9 @@ import { useEffect, useState } from "react";
 import { CoreBars } from "../components/CoreBars";
 import { Dock } from "../components/Dock";
 import { Launcher } from "../components/Launcher";
+import { LayoutSwitcher } from "../components/LayoutSwitcher";
+import { TileOutlines } from "../components/TileOutlines";
+import { WindowList } from "../components/WindowList";
 import { Meter } from "../components/Meter";
 import { ProcessTable } from "../components/ProcessTable";
 import { Readout } from "../components/Ring";
@@ -12,15 +15,26 @@ import {
   launchApp,
   listApps,
   listMonitors,
+  listWindows,
   onCatalog,
   onMonitorsChanged,
+  onWindows,
   refreshApps,
   setAppPinned,
+  setHudOverlay,
   shutdown,
+  windowLayouts,
 } from "../lib/api";
 import { bytes, duration, rate } from "../lib/format";
 import { useMetrics } from "../lib/useMetrics";
-import type { AppEntry, HostInfo, HudContext, MonitorInfo } from "../types";
+import type {
+  AppEntry,
+  HostInfo,
+  HudContext,
+  ManagedWindow,
+  MonitorInfo,
+  MonitorLayout,
+} from "../types";
 
 export function Hud({ label }: { label: string }) {
   const [ctx, setCtx] = useState<HudContext | null>(null);
@@ -28,6 +42,8 @@ export function Hud({ label }: { label: string }) {
   const [host, setHost] = useState<HostInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [apps, setApps] = useState<AppEntry[]>([]);
+  const [windows, setWindows] = useState<ManagedWindow[]>([]);
+  const [layouts, setLayouts] = useState<MonitorLayout[]>([]);
   const [launcherOpen, setLauncherOpen] = useState(true);
   const [notice, setNotice] = useState<string | null>(null);
   const [clock, setClock] = useState(() => new Date());
@@ -64,13 +80,26 @@ export function Hud({ label }: { label: string }) {
     load();
     getHostInfo().then(setHost).catch(() => {});
     listApps().then(setApps).catch(() => {});
+    listWindows().then(setWindows).catch(() => {});
+    windowLayouts().then(setLayouts).catch(() => {});
     const unMonitors = onMonitorsChanged(load);
     const unCatalog = onCatalog(setApps);
+    const unWindows = onWindows((next) => {
+      setWindows(next);
+      windowLayouts().then(setLayouts).catch(() => {});
+    });
     return () => {
       unMonitors.then((f) => f());
       unCatalog.then((f) => f());
+      unWindows.then((f) => f());
     };
   }, [label]);
+
+  // The HUD lives below every app window, so the launcher has to be lifted
+  // above them while it is open, and dropped back afterwards.
+  useEffect(() => {
+    setHudOverlay(label, launcherOpen).catch(() => {});
+  }, [label, launcherOpen]);
 
   const flash = (message: string) => {
     setNotice(message);
@@ -87,6 +116,11 @@ export function Hud({ label }: { label: string }) {
       .then(setApps)
       .catch((e) => flash(String(e)));
 
+  const refreshWindows = () => {
+    listWindows().then(setWindows).catch(() => {});
+    windowLayouts().then(setLayouts).catch(() => {});
+  };
+
   if (error) return <div className="hud hud--error">topology error :: {error}</div>;
   if (!ctx) return <div className="hud" />;
 
@@ -96,10 +130,13 @@ export function Hud({ label }: { label: string }) {
     ? (snapshot.memory.used / snapshot.memory.total) * 100
     : null;
   const systemDisk = snapshot?.disks[0];
+  const mine = windows.filter((w) => w.monitorId === monitor.id);
+  const layout = layouts.find((l) => l.monitorId === monitor.id);
 
   return (
     <div className={`hud hud--${chrome}`}>
       <div className="hud__scanlines" aria-hidden />
+      <TileOutlines windows={mine} monitor={monitor} />
 
       {/* The region the window manager will tile app windows into (milestone 4). */}
       <div
@@ -115,10 +152,15 @@ export function Hud({ label }: { label: string }) {
         <Bracket corner="tr" />
         <Bracket corner="bl" />
         <Bracket corner="br" />
-        <div className="slot__label">
-          WINDOW REGION · {viewport.width - reserved.left - reserved.right} ×{" "}
-          {viewport.height - reserved.top - reserved.bottom}
-        </div>
+        {/* Only worth saying when the region is empty; once windows are
+            tiled, each tile carries its own label. */}
+        {mine.length === 0 && (
+          <div className="slot__label">
+            WINDOW REGION · {viewport.width - reserved.left - reserved.right} ×{" "}
+            {viewport.height - reserved.top - reserved.bottom}
+            {layout ? ` · ${layout.kind}` : ""}
+          </div>
+        )}
         {chrome === "full" && launcherOpen && (
           <Launcher
             apps={apps}
@@ -148,6 +190,13 @@ export function Hud({ label }: { label: string }) {
           </span>
         )}
         <span className="spacer" />
+        {layout && (
+          <LayoutSwitcher
+            monitorId={monitor.id}
+            active={layout.kind}
+            onChanged={refreshWindows}
+          />
+        )}
         <span className="dim">
           {monitor.name} · {monitor.bounds.width}×{monitor.bounds.height} ·{" "}
           {Math.round(monitor.scaleFactor * 100)}%
@@ -196,6 +245,13 @@ export function Hud({ label }: { label: string }) {
             <span>↓ {rate(snapshot?.network.rxPerSec ?? 0)}</span>
             <span>↑ {rate(snapshot?.network.txPerSec ?? 0)}</span>
           </p>
+        </section>
+
+        <section className="block">
+          <h2>
+            WINDOWS <span className="dim">· {mine.length}</span>
+          </h2>
+          <WindowList windows={mine} onChanged={refreshWindows} />
         </section>
 
         <section className="block block--grow">
