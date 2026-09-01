@@ -4,6 +4,8 @@ import type {
   AgentEvent,
   AgentStatus,
   AppEntry,
+  DirEntry,
+  FilePayload,
   HostInfo,
   HttpRequest,
   HttpResponse,
@@ -16,6 +18,7 @@ import type {
   MonitorLayout,
   TerminalClosed,
   TerminalOutput,
+  WorkbenchState,
 } from "../types";
 
 export const listMonitors = () => invoke<MonitorInfo[]>("list_monitors");
@@ -119,3 +122,14 @@ export const agentReset = () => invoke<void>("agent_reset");
 
 export const onAgentEvent = (cb: (event: AgentEvent) => void): Promise<UnlistenFn> =>
   listen<AgentEvent>("agent::event", (e) => cb(e.payload));
+
+export const workbenchState = () => invoke<WorkbenchState>("workbench_state");
+
+export const workbenchOpen = (path?: string) =>
+  invoke<WorkbenchState>("workbench_open", { path: path ?? null });
+
+export const workbenchListDir = (path: string) =>
+  invoke<DirEntry[]>("workbench_list_dir", { path });
+
+export const workbenchReadFile = (path: string) =>
+  invoke<FilePayload>("workbench_read_file", { path });

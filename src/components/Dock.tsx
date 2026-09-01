@@ -1,12 +1,13 @@
 import { AppIcon } from "./AppIcon";
 import type { AppEntry } from "../types";
 
-export type Overlay = "launcher" | "terminal" | "http" | "agent" | null;
+export type Overlay = "launcher" | "terminal" | "http" | "agent" | "workbench" | null;
 
 const PANELS: { kind: Exclude<Overlay, null>; label: string; hint: string }[] = [
   { kind: "launcher", label: "APPS", hint: "All applications" },
   { kind: "terminal", label: "TERM", hint: "Terminal session" },
   { kind: "http", label: "HTTP", hint: "HTTP client" },
+  { kind: "workbench", label: "WORK", hint: "Workbench — file tree and viewer" },
   { kind: "agent", label: "ASK", hint: "Command layer — natural language" },
 ];
 

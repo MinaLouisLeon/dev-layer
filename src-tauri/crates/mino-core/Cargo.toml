@@ -1,0 +1,32 @@
+[package]
+name = "mino-core"
+description = "Transport interface and domain types shared by the Mino Workbench desktop app and agent daemon."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+# This crate must never depend on Tauri or on a web framework. It is linked by
+# both apps/desktop (Tauri) and crates/mino-agent (axum); a dependency either
+# way would break that.
+[dependencies]
+async-trait.workspace = true
+base64.workspace = true
+portable-pty.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+ts-rs.workspace = true
+uuid.workspace = true
+which.workspace = true
+
+# Phase 2 transports. Declared and pinned now so the SSH and remote-agent
+# implementations compile against real crates from day one.
+russh.workspace = true
+russh-sftp.workspace = true
+tokio-tungstenite.workspace = true
+
+[dev-dependencies]
+tempfile = "3.14.0"

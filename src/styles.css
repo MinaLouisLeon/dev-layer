@@ -603,3 +603,40 @@ h2 { margin: 0; font-size: 10px; font-weight: 600; color: var(--dim); letter-spa
 }
 .ask__input:focus { border-color: var(--line); box-shadow: var(--glow); }
 .ask__input::placeholder { color: var(--dim); }
+
+
+/* ------------------------------------------------------------ workbench */
+.work { display: grid; grid-template-columns: 300px 1fr; min-height: 0; }
+.work__tree {
+  overflow: auto;
+  scrollbar-width: thin;
+  padding: 8px 4px;
+  border-right: 1px solid var(--line-soft);
+  display: flex;
+  flex-direction: column;
+}
+.work__viewer { display: flex; flex-direction: column; gap: 8px; padding: 10px; min-width: 0; }
+.work__meta { display: flex; gap: 10px; font-size: 10px; align-items: baseline; }
+
+.tree__row {
+  display: grid;
+  grid-template-columns: 14px 1fr auto;
+  gap: 5px;
+  align-items: baseline;
+  padding: 3px 6px 3px 0;
+  font: inherit;
+  font-size: 11px;
+  text-align: left;
+  color: var(--dim);
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+.tree__row:hover { color: var(--fg); background: rgba(94, 234, 255, 0.06); }
+.tree__row.is-selected { color: var(--fg); border-color: var(--line-soft); background: rgba(94, 234, 255, 0.09); }
+/* Hidden entries are dimmed rather than hidden: they matter to a developer. */
+.tree__row.is-hidden { opacity: 0.55; }
+.tree__mark { color: var(--line); }
+.tree__name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tree__size { font-size: 9px; opacity: 0.6; }
+.tree__error { margin: 2px 0; font-size: 10px; color: var(--crit); }
