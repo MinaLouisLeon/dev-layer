@@ -40,7 +40,35 @@ They look embedded; Windows still owns them, so nothing destabilizes.
 * No native code in the frontend; everything system-level crosses the
   command bus in `src-tauri/src/bus`.
 
-## Running it
+## Installing
+
+Grab `dev-layer_<version>_x64-setup.exe` from
+[Releases](../../releases) and run it. The installer is per-user, so there is no
+administrator prompt. The build is unsigned, so Windows SmartScreen will warn
+the first time — "More info" then "Run anyway".
+
+Exit with `Ctrl+Alt+Shift+Q`; it restores the taskbar and every window it moved.
+
+### Releases are automatic
+
+| Trigger | Result |
+|---|---|
+| Push to `main` | The `nightly` prerelease is replaced with a fresh installer built at that commit |
+| Push a `v*` tag | A permanent release for that version |
+| Pull request into `main` | The installer is built and attached to the run, so a change can be tried before merging |
+
+Every path runs `cargo test` on Windows first and stops if it fails — that is
+the only place the tests run, since the rest of CI is on Linux where the Tauri
+dependency chain cannot build.
+
+To cut a stable release, bump `version` in `src-tauri/tauri.conf.json` (and
+`package.json` to match), commit, then:
+
+```bash
+git tag v0.2.0 && git push origin v0.2.0
+```
+
+## Building it yourself
 
 Prerequisites on Windows 10/11: Rust (stable), Node 18+, and the WebView2
 runtime (preinstalled on Windows 11).
