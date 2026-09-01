@@ -3,6 +3,8 @@ import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type {
   AppEntry,
   HostInfo,
+  HttpRequest,
+  HttpResponse,
   HudContext,
   LayoutKind,
   ManagedWindow,
@@ -10,6 +12,8 @@ import type {
   MonitorChange,
   MonitorInfo,
   MonitorLayout,
+  TerminalClosed,
+  TerminalOutput,
 } from "../types";
 
 export const listMonitors = () => invoke<MonitorInfo[]>("list_monitors");
@@ -78,3 +82,29 @@ export const onWindows = (
   cb: (windows: ManagedWindow[]) => void,
 ): Promise<UnlistenFn> =>
   listen<ManagedWindow[]>("wm::windows", (e) => cb(e.payload));
+
+export const terminalOpen = (cols: number, rows: number) =>
+  invoke<string>("terminal_open", { cols, rows });
+
+export const terminalWrite = (id: string, data: string) =>
+  invoke<void>("terminal_write", { id, data });
+
+export const terminalResize = (id: string, cols: number, rows: number) =>
+  invoke<void>("terminal_resize", { id, cols, rows });
+
+export const terminalClose = (id: string) => invoke<void>("terminal_close", { id });
+
+export const onTerminalOutput = (
+  cb: (output: TerminalOutput) => void,
+): Promise<UnlistenFn> =>
+  listen<TerminalOutput>("terminal::output", (e) => cb(e.payload));
+
+export const onTerminalClosed = (
+  cb: (closed: TerminalClosed) => void,
+): Promise<UnlistenFn> =>
+  listen<TerminalClosed>("terminal::closed", (e) => cb(e.payload));
+
+export const httpSend = (request: HttpRequest) =>
+  invoke<HttpResponse>("http_send", { request });
+
+export const httpHistory = () => invoke<HttpRequest[]>("http_history");

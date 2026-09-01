@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { CoreBars } from "../components/CoreBars";
-import { Dock } from "../components/Dock";
+import { Dock, type Overlay } from "../components/Dock";
 import { Launcher } from "../components/Launcher";
 import { LayoutSwitcher } from "../components/LayoutSwitcher";
 import { TileOutlines } from "../components/TileOutlines";
@@ -36,6 +36,11 @@ import type {
   MonitorLayout,
 } from "../types";
 
+// xterm is ~300 KB and only one HUD window is ever showing a terminal; every
+// other monitor's HUD should not pay to parse it at startup.
+const TerminalPanel = lazy(() => import("../components/TerminalPanel"));
+const HttpPanel = lazy(() => import("../components/HttpPanel"));
+
 export function Hud({ label }: { label: string }) {
   const [ctx, setCtx] = useState<HudContext | null>(null);
   const [monitors, setMonitors] = useState<MonitorInfo[]>([]);
@@ -44,7 +49,7 @@ export function Hud({ label }: { label: string }) {
   const [apps, setApps] = useState<AppEntry[]>([]);
   const [windows, setWindows] = useState<ManagedWindow[]>([]);
   const [layouts, setLayouts] = useState<MonitorLayout[]>([]);
-  const [launcherOpen, setLauncherOpen] = useState(true);
+  const [overlay, setOverlay] = useState<Overlay>("launcher");
   const [notice, setNotice] = useState<string | null>(null);
   const [clock, setClock] = useState(() => new Date());
   // Insets are logical (CSS) pixels; the viewport is the only logical-pixel
@@ -95,11 +100,11 @@ export function Hud({ label }: { label: string }) {
     };
   }, [label]);
 
-  // The HUD lives below every app window, so the launcher has to be lifted
-  // above them while it is open, and dropped back afterwards.
+  // The HUD lives below every app window, so any panel has to be lifted above
+  // them while it is open, and dropped back afterwards.
   useEffect(() => {
-    setHudOverlay(label, launcherOpen).catch(() => {});
-  }, [label, launcherOpen]);
+    setHudOverlay(label, overlay !== null).catch(() => {});
+  }, [label, overlay]);
 
   const flash = (message: string) => {
     setNotice(message);
@@ -154,24 +159,33 @@ export function Hud({ label }: { label: string }) {
         <Bracket corner="br" />
         {/* Only worth saying when the region is empty; once windows are
             tiled, each tile carries its own label. */}
-        {mine.length === 0 && (
+        {mine.length === 0 && overlay === null && (
           <div className="slot__label">
             WINDOW REGION · {viewport.width - reserved.left - reserved.right} ×{" "}
             {viewport.height - reserved.top - reserved.bottom}
             {layout ? ` · ${layout.kind}` : ""}
           </div>
         )}
-        {chrome === "full" && launcherOpen && (
+        {chrome === "full" && overlay === "launcher" && (
           <Launcher
             apps={apps}
             onLaunch={launch}
             onTogglePin={togglePin}
-            onClose={() => setLauncherOpen(false)}
+            onClose={() => setOverlay(null)}
             onRefresh={() => {
               refreshApps();
               flash("rescanning Start Menu…");
             }}
           />
+        )}
+        {chrome === "full" && (overlay === "terminal" || overlay === "http") && (
+          <Suspense fallback={<div className="panel panel--loading dim">loading panel…</div>}>
+            {overlay === "terminal" ? (
+              <TerminalPanel onClose={() => setOverlay(null)} />
+            ) : (
+              <HttpPanel onClose={() => setOverlay(null)} />
+            )}
+          </Suspense>
         )}
       </div>
 
@@ -296,8 +310,8 @@ export function Hud({ label }: { label: string }) {
             apps={apps.filter((a) => a.pinned)}
             onLaunch={launch}
             onUnpin={togglePin}
-            onOpenLauncher={() => setLauncherOpen((open) => !open)}
-            launcherOpen={launcherOpen}
+            overlay={overlay}
+            onOverlay={setOverlay}
           />
         )}
 

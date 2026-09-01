@@ -1,29 +1,42 @@
 import { AppIcon } from "./AppIcon";
 import type { AppEntry } from "../types";
 
+export type Overlay = "launcher" | "terminal" | "http" | null;
+
+const PANELS: { kind: Exclude<Overlay, null>; label: string; hint: string }[] = [
+  { kind: "launcher", label: "APPS", hint: "All applications" },
+  { kind: "terminal", label: "TERM", hint: "Terminal session" },
+  { kind: "http", label: "HTTP", hint: "HTTP client" },
+];
+
 /** Pinned apps only. Everything else lives in the launcher. */
 export function Dock({
   apps,
   onLaunch,
   onUnpin,
-  onOpenLauncher,
-  launcherOpen,
+  overlay,
+  onOverlay,
 }: {
   apps: AppEntry[];
   onLaunch: (app: AppEntry) => void;
   onUnpin: (app: AppEntry) => void;
-  onOpenLauncher: () => void;
-  launcherOpen: boolean;
+  overlay: Overlay;
+  onOverlay: (overlay: Overlay) => void;
 }) {
   return (
     <nav className="dock" aria-label="Pinned applications">
-      <button
-        className={`dock__apps ${launcherOpen ? "is-open" : ""}`}
-        onClick={onOpenLauncher}
-        title="All applications"
-      >
-        APPS
-      </button>
+      <span className="dock__panels">
+        {PANELS.map(({ kind, label, hint }) => (
+          <button
+            key={kind}
+            className={`dock__apps ${overlay === kind ? "is-open" : ""}`}
+            onClick={() => onOverlay(overlay === kind ? null : kind)}
+            title={hint}
+          >
+            {label}
+          </button>
+        ))}
+      </span>
 
       {apps.length === 0 ? (
         <span className="dim note">scanning Start Menu…</span>

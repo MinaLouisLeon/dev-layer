@@ -12,6 +12,7 @@ use crate::config::Config;
 use crate::hud::{HudContext, LABEL_PREFIX};
 use crate::metrics::MetricsSnapshot;
 use crate::monitors::MonitorInfo;
+use crate::panels::{HttpRequest, HttpResponse, RequestHistory};
 use crate::wm::{LayoutKind, ManagedWindow, MonitorLayout};
 use crate::AppState;
 
@@ -180,6 +181,79 @@ pub fn set_hud_overlay(app: AppHandle, label: String, on: bool) -> Result<(), St
             .map_err(|e| e.to_string())?;
     }
     Ok(())
+}
+
+// -------------------------------------------------------------- panels
+
+#[tauri::command]
+pub fn terminal_open(
+    app: AppHandle,
+    cols: u16,
+    rows: u16,
+    state: State<'_, AppState>,
+) -> Result<String, String> {
+    let shell = state.config.panels.shell.clone();
+    let cwd = state
+        .config
+        .panels
+        .startup_dir
+        .as_ref()
+        .map(std::path::PathBuf::from)
+        .or_else(|| app.path().home_dir().ok());
+
+    state
+        .terminals
+        .open(&app, cols, rows, shell, cwd)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn terminal_write(id: String, data: String, state: State<'_, AppState>) -> Result<(), String> {
+    state.terminals.write(&id, &data).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn terminal_resize(
+    id: String,
+    cols: u16,
+    rows: u16,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    state
+        .terminals
+        .resize(&id, cols, rows)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn terminal_close(id: String, state: State<'_, AppState>) {
+    state.terminals.close(&id);
+}
+
+/// Sends one HTTP request and records it in history. Async so a slow endpoint
+/// never blocks the HUD.
+#[tauri::command]
+pub async fn http_send(app: AppHandle, request: HttpRequest) -> Result<HttpResponse, String> {
+    let response = crate::panels::send_request(request.clone())
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if let Ok(dir) = app.path().app_config_dir() {
+        let mut history = RequestHistory::load(&dir);
+        history.record(&request);
+        if let Err(e) = history.save(&dir) {
+            tracing::warn!(error = %e, "could not save request history");
+        }
+    }
+    Ok(response)
+}
+
+#[tauri::command]
+pub fn http_history(app: AppHandle) -> Vec<HttpRequest> {
+    app.path()
+        .app_config_dir()
+        .map(|dir| RequestHistory::load(&dir).entries)
+        .unwrap_or_default()
 }
 
 /// Restores the desktop and quits. The only intended way out, and the same

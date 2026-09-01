@@ -14,6 +14,7 @@ pub struct Config {
     pub hotkeys: HotkeyConfig,
     pub metrics: MetricsConfig,
     pub wm: WmConfig,
+    pub panels: PanelsConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -109,6 +110,16 @@ impl Default for HotkeyConfig {
             retile: "Ctrl+Alt+R".into(),
         }
     }
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+pub struct PanelsConfig {
+    /// Shell for the terminal panel. Defaults to PowerShell 7, then Windows
+    /// PowerShell, then COMSPEC.
+    pub shell: Option<String>,
+    /// Working directory new terminals start in. Defaults to the home dir.
+    pub startup_dir: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

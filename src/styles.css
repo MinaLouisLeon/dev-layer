@@ -227,6 +227,7 @@ h2 { margin: 0; font-size: 10px; font-weight: 600; color: var(--dim); letter-spa
 }
 .dock::-webkit-scrollbar { display: none; }
 
+.dock__panels { display: flex; gap: 4px; flex: none; }
 .dock__apps {
   font: inherit;
   letter-spacing: 0.18em;
@@ -428,3 +429,125 @@ h2 { margin: 0; font-size: 10px; font-weight: 600; color: var(--dim); letter-spa
   cursor: pointer;
 }
 .wins__actions button:hover { color: var(--fg); border-color: var(--line-soft); }
+
+
+/* ------------------------------------------------------- native panels */
+/* Panels fill the region: a terminal or a response body needs the room,
+   unlike the launcher grid which hugs its content. */
+.panel {
+  position: absolute;
+  top: 34px; left: 34px; right: 34px; bottom: 34px;
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  background: rgba(2, 10, 14, 0.94);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--line-soft);
+}
+.panel--loading { align-items: center; justify-content: center; }
+.panel__bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line-soft);
+}
+.panel__body { flex: 1; min-height: 0; display: flex; }
+
+.term { padding: 6px 4px 4px 8px; }
+.term .xterm { height: 100%; }
+.term .xterm-viewport { scrollbar-width: thin; }
+
+.ghost--go { color: var(--fg); border-color: var(--line); }
+.ghost--go:disabled { opacity: 0.5; cursor: default; }
+
+/* ---------------------------------------------------------- http panel */
+.http__method, .http__url {
+  font: inherit;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  padding: 5px 8px;
+  color: var(--fg);
+  background: rgba(94, 234, 255, 0.05);
+  border: 1px solid var(--line-soft);
+  outline: none;
+}
+.http__method {
+  letter-spacing: 0.16em;
+  /* Strip the OS dropdown chrome; it is the one control that would otherwise
+     look pasted in from another era. */
+  appearance: none;
+  padding-right: 22px;
+  background-image: linear-gradient(45deg, transparent 50%, var(--line) 50%),
+                    linear-gradient(135deg, var(--line) 50%, transparent 50%);
+  background-position: calc(100% - 12px) 50%, calc(100% - 7px) 50%;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  cursor: pointer;
+}
+.http__method option { background: #02080c; color: var(--fg); }
+/* A 2xx reads as good here; in the metrics rails "nominal" stays deliberately
+   quiet, so scope this to the response stats. */
+.http__stats .readout--nominal { color: var(--ok); }
+.http__url { flex: 1; }
+.http__url:focus, .http__body:focus { border-color: var(--line); box-shadow: var(--glow); }
+
+.http { display: grid; grid-template-columns: 200px 320px 1fr; min-height: 0; }
+.http > * { min-width: 0; overflow-y: auto; scrollbar-width: thin; padding: 10px; }
+.http__history { border-right: 1px solid var(--line-soft); }
+.http__history ul { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.http__history button {
+  display: grid;
+  grid-template-columns: 44px 1fr;
+  gap: 6px;
+  width: 100%;
+  padding: 4px 5px;
+  font: inherit;
+  font-size: 10px;
+  text-align: left;
+  color: var(--dim);
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+.http__history button:hover { color: var(--fg); border-color: var(--line-soft); }
+.http__history b { color: var(--accent); font-weight: 500; }
+.http__history span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.http__request { border-right: 1px solid var(--line-soft); display: flex; flex-direction: column; gap: 8px; }
+.http__tabs { display: flex; gap: 0; border: 1px solid var(--line-soft); align-self: flex-start; }
+.http__tabs button {
+  font: inherit; font-size: 9px; letter-spacing: 0.16em; padding: 4px 10px;
+  color: var(--dim); background: transparent; border: none; cursor: pointer;
+}
+.http__tabs button.is-active { color: var(--bg); background: var(--line); }
+
+.http__headers { display: flex; flex-direction: column; gap: 3px; }
+.http__headerrow { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; }
+.http__headerrow input, .http__body {
+  font: inherit; font-size: 10px; padding: 4px 6px;
+  color: var(--fg); background: rgba(94, 234, 255, 0.04);
+  border: 1px solid var(--line-soft); outline: none;
+}
+.http__body { flex: 1; min-height: 160px; resize: none; line-height: 1.5; }
+
+.http__response { display: flex; flex-direction: column; gap: 8px; }
+.http__stats { display: flex; gap: 14px; flex-wrap: wrap; }
+.http__stats em { font-style: normal; letter-spacing: 0.18em; opacity: 0.7; margin-right: 4px; }
+.http__error { color: var(--crit); margin: 0; }
+.http__out {
+  flex: 1;
+  margin: 0;
+  padding: 8px;
+  overflow: auto;
+  scrollbar-width: thin;
+  font-size: 11px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--fg);
+  background: rgba(94, 234, 255, 0.04);
+  border: 1px solid var(--line-soft);
+}
+.http__resheaders summary { cursor: pointer; font-size: 10px; }
+.http__resheaders td { padding: 2px 8px 2px 0; font-size: 10px; max-width: 260px; }

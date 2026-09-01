@@ -145,3 +145,38 @@ export interface MonitorLayout {
   region: Rect;
   windowCount: number;
 }
+
+/** Mirrors `src-tauri/src/panels/`. */
+export interface TerminalOutput {
+  id: string;
+  data: string;
+}
+
+export interface TerminalClosed {
+  id: string;
+  exitCode: number;
+}
+
+export interface HttpHeader {
+  name: string;
+  value: string;
+}
+
+export interface HttpRequest {
+  method: string;
+  url: string;
+  headers: HttpHeader[];
+  body: string | null;
+  timeoutMs: number | null;
+}
+
+export interface HttpResponse {
+  status: number;
+  statusText: string;
+  headers: HttpHeader[];
+  body: string;
+  bodyIsBase64: boolean;
+  size: number;
+  elapsedMs: number;
+  finalUrl: string;
+}

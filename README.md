@@ -7,7 +7,7 @@ It is a **layer**, not a shell replacement. `explorer.exe` keeps running, the
 Winlogon registry is never touched, and every change dev-layer makes to the
 desktop is undone on exit — including on crash.
 
-## Status: milestone 4 of 6
+## Status: milestone 5 of 6
 
 | # | Milestone | State |
 |---|---|---|
@@ -15,7 +15,7 @@ desktop is undone on exit — including on crash.
 | 2 | Metrics: CPU / RAM / GPU / net gauges | **done** |
 | 3 | App catalog: Start Menu discovery, icons, dock | **done** |
 | 4 | Window manager: tiling, layouts, per-app rules | **done** |
-| 5 | Native panels: terminal, REST client, git/docker | not started |
+| 5 | Native panels: terminal, HTTP client | **done** |
 | 6 | Command bus + AI/voice layer | bus scaffolded |
 
 ## How apps end up "inside" the HUD
@@ -188,6 +188,34 @@ Known limits: windows of elevated (administrator) processes cannot be moved by
 a non-elevated dev-layer, and are left alone rather than retried. Chromium-based
 apps sometimes restore their own bounds; `Ctrl+Alt+R` re-tiles. Live DWM
 thumbnails for an overview mode are not built yet.
+
+## Native panels
+
+Two tools live *inside* the HUD rather than as more windows to tile, on the
+rule from the original design discussion: heavyweight apps you cannot replace
+stay real windows; small tools you reach for constantly are better as panels.
+
+**Terminal** (`TERM`) — a real shell on a pseudo-console, rendered with xterm.
+PowerShell 7 if installed, then Windows PowerShell, then `COMSPEC`; override in
+config. Sessions are killed on exit, including on panic, so dev-layer never
+leaves orphaned shells behind.
+
+**HTTP client** (`HTTP`) — the "don't open Postman for one call" panel. Method,
+URL, headers, body; response with status, elapsed time, size, pretty-printed
+JSON and a collapsible header list. The last 25 requests are remembered in
+`requests.json` and recalled with one click. TLS goes through schannel, so the
+Windows certificate store applies — internal endpoints with a corporate CA just
+work.
+
+```json
+"panels": {
+  "shell": null,
+  "startupDir": null
+}
+```
+
+Panels open over the window region and lift the HUD above the tiled apps while
+open. Not built: git and docker panels.
 
 ## Multi-monitor
 

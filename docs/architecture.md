@@ -187,6 +187,40 @@ Deferred: live DWM thumbnails. `DwmRegisterThumbnail` renders into a region of
 alongside an overview mode that raises the HUD, which is a feature of its own
 rather than a detail of this one.
 
+## 11. Native panels
+
+**The PTY is not hand-rolled.** ConPTY setup — pseudo-console handles, the
+`PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE` dance, pipe lifetimes — is fiddly and
+thoroughly solved by `portable-pty` (wezterm's). Using it also means the PTY
+plumbing runs on Linux, which is how it got tested at all from a Linux host.
+
+Each session owns two threads: one draining the PTY into events, one waiting on
+the child so an exited shell removes its own session. The slave handle is
+dropped immediately after spawn — hold it and the reader never sees EOF when
+the shell exits, and the panel hangs on a dead session.
+
+**Chunk-boundary decoding.** PTY reads split wherever the buffer fills, which
+lands mid-character often enough to matter. `from_utf8_lossy` per chunk would
+sprinkle replacement characters through any non-ASCII output (every progress
+bar cargo draws). The decoder keeps an incomplete trailing sequence for the
+next chunk, and still emits the valid prefix immediately so output never
+stalls waiting for a continuation byte.
+
+**Terminals die with us.** `close_all` is registered with `safety`: a crash
+that left shells running would be a resource leak the user cannot see.
+
+**HTTP over schannel, not rustls.** `native-tls` on Windows means the OS
+certificate store applies, so internal HTTPS endpoints signed by a corporate CA
+work without configuration — the common case for the developer this is built
+for. (It also sidesteps needing a C toolchain to cross-compile `ring`.)
+
+History de-duplicates by method+URL so re-running a call moves it to the top
+rather than filling the list, and never stores response bodies.
+
+**xterm is lazily imported.** It is ~330 KB, and with a HUD window per monitor
+every display would otherwise pay to parse it at startup for a panel only one
+of them will ever show.
+
 ## Module map
 
 ```
@@ -200,6 +234,7 @@ src-tauri/src/
 ├─ bus/            all Tauri commands
 ├─ metrics/        sampler thread, snapshot types, GPU backends
 ├─ monitors/       topology registry, diffing, watcher thread
+├─ panels/         terminal sessions (PTY) and the HTTP client
 ├─ hud/            per-monitor HUD windows, reserved-region contract
 ├─ shell/          reversible shell mutation (taskbar auto-hide)
 ├─ wm/             window manager: pure layout engine, reconcile loop

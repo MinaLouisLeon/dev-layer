@@ -16,6 +16,7 @@ pub mod geometry;
 pub mod hud;
 pub mod metrics;
 pub mod monitors;
+pub mod panels;
 pub mod platform;
 pub mod safety;
 pub mod shell;
@@ -29,6 +30,7 @@ use crate::config::Config;
 use crate::hud::HudManager;
 use crate::metrics::MetricsStore;
 use crate::monitors::MonitorRegistry;
+use crate::panels::TerminalSessions;
 use crate::wm::WindowManager;
 
 /// Shared, read-mostly application state.
@@ -39,6 +41,7 @@ pub struct AppState {
     pub metrics: MetricsStore,
     pub apps: AppCatalog,
     pub wm: std::sync::Arc<WindowManager>,
+    pub terminals: std::sync::Arc<TerminalSessions>,
 }
 
 pub fn run() {
@@ -71,6 +74,12 @@ pub fn run() {
             bus::set_wm_enabled,
             bus::retile,
             bus::set_hud_overlay,
+            bus::terminal_open,
+            bus::terminal_write,
+            bus::terminal_resize,
+            bus::terminal_close,
+            bus::http_send,
+            bus::http_history,
             bus::shutdown,
         ])
         .setup(|app| {
@@ -108,6 +117,7 @@ fn start(app: &AppHandle) -> error::Result<()> {
         metrics: MetricsStore::default(),
         apps: AppCatalog::default(),
         wm: std::sync::Arc::new(WindowManager::new(config.wm.clone())),
+        terminals: std::sync::Arc::new(TerminalSessions::default()),
     });
 
     // 1. Discover displays and put a HUD on each one.
@@ -141,7 +151,14 @@ fn start(app: &AppHandle) -> error::Result<()> {
     }
     wm::spawn_watcher(app.clone())?;
 
-    // 7. The escape hatch, available even if the HUD stops responding.
+    // 7. Panel sessions are processes we own: they must die with us, or the
+    //    user is left with orphaned shells after every exit.
+    {
+        let terminals = app.state::<AppState>().terminals.clone();
+        safety::register("close terminals", move || terminals.close_all());
+    }
+
+    // 8. The escape hatch, available even if the HUD stops responding.
     register_hotkeys(app, &config)?;
 
     tracing::info!(
