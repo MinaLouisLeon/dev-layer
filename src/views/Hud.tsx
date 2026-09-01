@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from "react";
+import React, { lazy, Suspense, useEffect, useState } from "react";
 import { CoreBars } from "../components/CoreBars";
 import { Dock, type Overlay } from "../components/Dock";
 import { Launcher } from "../components/Launcher";
@@ -130,7 +130,7 @@ export function Hud({ label }: { label: string }) {
   if (error) return <div className="hud hud--error">topology error :: {error}</div>;
   if (!ctx) return <div className="hud" />;
 
-  const { monitor, reserved, chrome } = ctx;
+  const { monitor, reserved, chrome, desktopGutter } = ctx;
   const gpu = snapshot?.gpus[0] ?? null;
   const memoryPercent = snapshot?.memory.total
     ? (snapshot.memory.used / snapshot.memory.total) * 100
@@ -140,7 +140,12 @@ export function Hud({ label }: { label: string }) {
   const layout = layouts.find((l) => l.monitorId === monitor.id);
 
   return (
-    <div className={`hud hud--${chrome}`}>
+    <div
+      className={`hud hud--${chrome}`}
+      // Chrome starts after the gutter; the strip itself stays empty so the
+      // desktop icons underneath are both visible and clickable.
+      style={{ "--gutter": `${desktopGutter}px` } as React.CSSProperties}
+    >
       <div className="hud__scanlines" aria-hidden />
       <TileOutlines windows={mine} monitor={monitor} />
 

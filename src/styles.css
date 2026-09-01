@@ -59,11 +59,11 @@ body {
   pointer-events: auto;
 }
 
-.rail--top { top: 0; left: 0; right: 0; height: 34px; padding: 0 12px; border-width: 0 0 1px; }
-.rail--bottom { bottom: 0; left: 0; right: 0; height: 34px; padding: 0 12px; border-width: 1px 0 0; gap: 16px; }
+.rail--top { top: 0; left: var(--gutter, 0px); right: 0; height: 34px; padding: 0 12px; border-width: 0 0 1px; }
+.rail--bottom { bottom: 0; left: var(--gutter, 0px); right: 0; height: 34px; padding: 0 12px; border-width: 1px 0 0; gap: 16px; }
 .hud--full .rail--bottom { height: 92px; }
 .rail--left {
-  top: 34px; bottom: 92px; left: 0; width: 280px;
+  top: 34px; bottom: 92px; left: var(--gutter, 0px); width: 280px;
   flex-direction: column; align-items: stretch; gap: 10px;
   padding: 12px; border-width: 0 1px 0 0;
   overflow-y: auto; scrollbar-width: none;
@@ -603,3 +603,6 @@ h2 { margin: 0; font-size: 10px; font-weight: 600; color: var(--dim); letter-spa
 }
 .ask__input:focus { border-color: var(--line); box-shadow: var(--glow); }
 .ask__input::placeholder { color: var(--dim); }
+
+.tag--shell { border-color: var(--accent); color: var(--accent); }
+.panel__bar code { color: var(--fg); background: rgba(94, 234, 255, 0.08); padding: 1px 4px; }

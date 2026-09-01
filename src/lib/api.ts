@@ -14,6 +14,7 @@ import type {
   MonitorChange,
   MonitorInfo,
   MonitorLayout,
+  ShellProbe,
   TerminalClosed,
   TerminalOutput,
 } from "../types";
@@ -119,3 +120,5 @@ export const agentReset = () => invoke<void>("agent_reset");
 
 export const onAgentEvent = (cb: (event: AgentEvent) => void): Promise<UnlistenFn> =>
   listen<AgentEvent>("agent::event", (e) => cb(e.payload));
+
+export const terminalShell = () => invoke<ShellProbe>("terminal_shell");

@@ -14,7 +14,7 @@ use crate::config::Config;
 use crate::hud::{HudContext, LABEL_PREFIX};
 use crate::metrics::MetricsSnapshot;
 use crate::monitors::MonitorInfo;
-use crate::panels::{HttpRequest, HttpResponse, RequestHistory};
+use crate::panels::{HttpRequest, HttpResponse, RequestHistory, ShellProbe};
 use crate::wm::{LayoutKind, ManagedWindow, MonitorLayout};
 use crate::AppState;
 
@@ -172,6 +172,10 @@ pub fn set_hud_overlay(app: AppHandle, label: String, on: bool) -> Result<(), St
         .get_webview_window(&label)
         .ok_or_else(|| format!("no window {label}"))?;
 
+    // The pointer watcher reads this: an open panel takes the mouse over the
+    // whole window, not just over the rails.
+    app.state::<AppState>().hud.set_overlay_open(&label, on);
+
     if on {
         window.set_always_on_top(true).map_err(|e| e.to_string())?;
         // Focus so the launcher's search field can actually receive typing.
@@ -207,6 +211,13 @@ pub fn terminal_open(
         .terminals
         .open(&app, cols, rows, shell, cwd)
         .map_err(|e| e.to_string())
+}
+
+/// What the next terminal will run, and whether nushell was found. The panel
+/// shows this so a fallback is never silent.
+#[tauri::command]
+pub fn terminal_shell(state: State<'_, AppState>) -> ShellProbe {
+    crate::panels::probe_shell(state.config.panels.shell.as_deref())
 }
 
 #[tauri::command]

@@ -78,6 +78,7 @@ pub fn run() {
             bus::retile,
             bus::set_hud_overlay,
             bus::terminal_open,
+            bus::terminal_shell,
             bus::terminal_write,
             bus::terminal_resize,
             bus::terminal_close,
@@ -140,16 +141,20 @@ fn start(app: &AppHandle) -> error::Result<()> {
     // 3. React to displays being plugged, unplugged, or rearranged.
     monitors::spawn_watcher(app.clone())?;
 
-    // 4. Telemetry: the HUD's reason to exist.
+    // 4. Let the mouse through everywhere the HUD paints nothing, so the
+    //    desktop underneath stays usable.
+    hud::hit::spawn_pointer_watcher(app.clone())?;
+
+    // 5. Telemetry: the HUD's reason to exist.
     metrics::spawn_sampler(app.clone(), config.metrics.clone())?;
 
-    // 5. Discover installed applications in the background; the dock fills in
+    // 6. Discover installed applications in the background; the dock fills in
     //    when the scan lands rather than delaying first paint.
     app.state::<AppState>().apps.load_preferences(&config_dir);
     allow_icon_cache(app)?;
     apps::spawn_scan(app.clone());
 
-    // 6. Take over window placement. The restore action is registered *before*
+    // 7. Take over window placement. The restore action is registered *before*
     //    the watcher, so teardown runs in the right order: stop watching, then
     //    put every window back.
     {
@@ -158,14 +163,14 @@ fn start(app: &AppHandle) -> error::Result<()> {
     }
     wm::spawn_watcher(app.clone())?;
 
-    // 7. Panel sessions are processes we own: they must die with us, or the
+    // 8. Panel sessions are processes we own: they must die with us, or the
     //    user is left with orphaned shells after every exit.
     {
         let terminals = app.state::<AppState>().terminals.clone();
         safety::register("close terminals", move || terminals.close_all());
     }
 
-    // 8. The escape hatch, available even if the HUD stops responding.
+    // 9. The escape hatch, available even if the HUD stops responding.
     register_hotkeys(app, &config)?;
 
     tracing::info!(

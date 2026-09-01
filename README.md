@@ -101,6 +101,7 @@ Written on first run to `%APPDATA%\dev.devlayer.hud\config.json`:
 {
   "hud": {
     "reserved": { "top": 34, "right": 0, "bottom": 92, "left": 280 },
+    "desktopGutter": 120,
     "reservedMinimal": { "top": 34, "right": 0, "bottom": 34, "left": 0 },
     "fullChromeOnSecondary": false
   },
@@ -116,8 +117,18 @@ Written on first run to `%APPDATA%\dev.devlayer.hud\config.json`:
 ```
 
 `reserved` is in logical (CSS) pixels and must match the rail sizes in
-`src/styles.css`. A malformed config logs a warning and falls back to defaults
-rather than leaving you without a shell.
+`src/styles.css` — a unit test pins the two together. A malformed config logs a
+warning and falls back to defaults rather than leaving you without a shell.
+
+`desktopGutter` is a strip down the left of the **primary** display that the
+HUD leaves completely alone — no chrome painted over it, and no clicks taken
+from it. That is where Windows draws desktop icons; 120 px clears one column.
+Set it to `0` if you keep your desktop empty and want the rail flush left.
+
+More generally, the HUD only takes the mouse where it actually paints
+something. Over the gutter, and over the window region where your apps are
+tiled, clicks pass straight through to what is underneath — so the desktop
+stays as usable as it was before dev-layer started.
 
 ## Telemetry
 
@@ -266,10 +277,17 @@ Two tools live *inside* the HUD rather than as more windows to tile, on the
 rule from the original design discussion: heavyweight apps you cannot replace
 stay real windows; small tools you reach for constantly are better as panels.
 
-**Terminal** (`TERM`) — a real shell on a pseudo-console, rendered with xterm.
-PowerShell 7 if installed, then Windows PowerShell, then `COMSPEC`; override in
-config. Sessions are killed on exit, including on panic, so dev-layer never
-leaves orphaned shells behind.
+**Terminal** (`TERM`) — [Nushell](https://www.nushell.sh) on a pseudo-console,
+rendered with xterm. Nushell is the default: its structured pipelines suit a
+HUD far better than text streams. If `nu` is not on `PATH` the two directories
+winget installs it to are checked as well, and failing that the terminal falls
+back to PowerShell 7 → Windows PowerShell → `COMSPEC` and *says so in its
+header*, with the install command. Override with `panels.shell`. Sessions are
+killed on exit, including on panic, so no orphaned shells are left behind.
+
+```
+winget install nushell
+```
 
 **HTTP client** (`HTTP`) — the "don't open Postman for one call" panel. Method,
 URL, headers, body; response with status, elapsed time, size, pretty-printed

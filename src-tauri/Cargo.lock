@@ -681,6 +681,7 @@ dependencies = [
  "tauri-plugin-global-shortcut",
  "tracing",
  "tracing-subscriber",
+ "which",
  "windows",
 ]
 
@@ -3941,10 +3942,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd"
 dependencies = [
  "fastrand",
- "getrandom 0.3.4",
+ "getrandom 0.4.3",
  "once_cell",
  "rustix",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -4727,6 +4728,15 @@ dependencies = [
  "thiserror 2.0.20",
  "windows",
  "windows-core 0.61.2",
+]
+
+[[package]]
+name = "which"
+version = "8.0.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bae2f2b2b816647a1cab1acc91f5bd20812d53cb344382635ec2181940c8034f"
+dependencies = [
+ "libc",
 ]
 
 [[package]]

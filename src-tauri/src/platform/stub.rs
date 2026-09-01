@@ -73,6 +73,11 @@ pub fn launch(_path: &std::path::Path, _args: &str, _dir: Option<&std::path::Pat
     ))
 }
 
+/// No pointer to follow off Windows; the watcher simply idles.
+pub fn cursor_position() -> Option<(i32, i32)> {
+    None
+}
+
 pub fn taskbar_state() -> u32 {
     0
 }

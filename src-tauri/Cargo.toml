@@ -22,6 +22,7 @@ tauri = { version = "2", features = ["protocol-asset"] }
 tauri-plugin-global-shortcut = "2"
 tracing = "0.1.44"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+which = "8.0.6"
 
 [build-dependencies]
 tauri-build = "2"

@@ -8,8 +8,10 @@ import {
   terminalClose,
   terminalOpen,
   terminalResize,
+  terminalShell,
   terminalWrite,
 } from "../lib/api";
+import type { ShellProbe } from "../types";
 
 /** HUD palette, so the terminal reads as part of the interface. */
 const THEME = {
@@ -31,6 +33,11 @@ const THEME = {
 export function TerminalPanel({ onClose }: { onClose: () => void }) {
   const host = useRef<HTMLDivElement>(null);
   const [status, setStatus] = useState("starting…");
+  const [shell, setShell] = useState<ShellProbe | null>(null);
+
+  useEffect(() => {
+    terminalShell().then(setShell).catch(() => {});
+  }, []);
 
   useEffect(() => {
     const element = host.current;
@@ -107,7 +114,15 @@ export function TerminalPanel({ onClose }: { onClose: () => void }) {
     <section className="panel" aria-label="Terminal">
       <header className="panel__bar">
         <span className="tag">TERMINAL</span>
+        {shell && <span className="tag tag--shell">{shell.label}</span>}
         <span className="dim">{status}</span>
+        {/* A fallback is never silent: if nushell is not the shell, say what
+            is running and how to get nushell. */}
+        {shell && !shell.nuAvailable && !shell.configured && (
+          <span className="dim">
+            nushell not found — <code>winget install nushell</code>
+          </span>
+        )}
         <span className="spacer" />
         <button className="ghost" onClick={onClose}>
           CLOSE

@@ -262,6 +262,33 @@ with `reqwest`, already present for the HTTP panel.
 Not built: voice. WebView2 has no dependable speech recognition, so it needs a
 bundled local model rather than a browser API.
 
+## 13. Click-through, and the strip the HUD does not own
+
+A HUD that covers the whole monitor takes every click that does not land on
+another app's window — including double-clicks on desktop icons. Tauri can only
+toggle click-through per window, so `hud::hit` polls the cursor (one
+`GetCursorPos` per 60 ms) and flips `set_ignore_cursor_events` as it crosses
+between painted chrome and the transparent parts. An open panel is raised above
+the tiled windows and takes the mouse everywhere; everything else is decided by
+a pure function with the gutter checked first, which is unit-tested.
+
+`desktopGutter` is the strip on the left of the primary display that the HUD
+neither paints nor clicks: the rails start after it, and the tiling region
+excludes it, so app windows do not bury the icons either. Only the primary
+display gets one, because that is where Windows draws icons.
+
+### A bug worth remembering
+
+The Rust-side `reserved` insets sat at 220/34 for five milestones while the CSS
+painted 280/92. Two commits claimed to fix it; both were `.replace()` calls
+against a single-line struct that `cargo fmt` had already split across lines,
+so they silently matched nothing — and both were "verified" by grepping the
+README rather than the config. The result: panels opened partly under the left
+rail, and tiled windows ran behind the dock.
+
+`config.rs` now has a test pinning the insets to the rail sizes in
+`src/styles.css`. If either side moves without the other, it fails.
+
 ## Module map
 
 ```
