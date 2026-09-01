@@ -71,7 +71,7 @@ impl TerminalSessions {
             })
             .map_err(|e| Error::Platform(format!("openpty: {e}")))?;
 
-        let program = shell.unwrap_or_else(default_shell);
+        let program = probe_shell(shell.as_deref()).program;
         let mut command = CommandBuilder::new(&program);
         if let Some(dir) = cwd.filter(|d| d.is_dir()) {
             command.cwd(dir);
@@ -260,34 +260,152 @@ fn decode_stream(pending: &mut Vec<u8>, chunk: &[u8]) -> String {
     out
 }
 
-/// PowerShell 7 if installed, then Windows PowerShell, then whatever `COMSPEC`
-/// says — matching what a developer would expect their terminal to open.
-fn default_shell() -> String {
+/// The result of looking for a shell to spawn.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ShellProbe {
+    /// Nushell was found and will be used.
+    pub nu_available: bool,
+    /// Absolute path to `nu`, when it was found.
+    pub nu_path: Option<String>,
+    /// What will actually be spawned — nushell, a configured shell, or the
+    /// platform fallback.
+    pub program: String,
+    /// Short name for the HUD, e.g. `nu` or `powershell`.
+    pub label: String,
+    /// True when the program came from `panels.shell` in the config rather
+    /// than from probing.
+    pub configured: bool,
+}
+
+/// Nushell is the default: it is what dev-layer is built around, and its
+/// structured pipelines suit a HUD better than text streams.
+const NU_PROGRAM: &str = "nu";
+
+/// winget has a long-standing habit of installing nushell somewhere that is
+/// not on PATH, so the obvious locations are checked before giving up.
+/// See https://github.com/nushell/nushell/issues/13281.
+#[cfg(windows)]
+const NU_FALLBACK_DIRS: &[&str] = &[r"C:\Program Files\nu\bin", r"C:\Program Files (x86)\nu\bin"];
+
+fn find_nu() -> Option<String> {
+    if let Ok(path) = which::which(NU_PROGRAM) {
+        return Some(path.to_string_lossy().into_owned());
+    }
+
     #[cfg(windows)]
     {
-        for candidate in ["pwsh.exe", "powershell.exe"] {
-            if on_path(candidate) {
-                return candidate.to_string();
+        let mut candidates: Vec<std::path::PathBuf> = NU_FALLBACK_DIRS
+            .iter()
+            .map(std::path::PathBuf::from)
+            .collect();
+        // The user-scope install winget prefers.
+        if let Some(local) = std::env::var_os("LOCALAPPDATA") {
+            candidates.push(std::path::PathBuf::from(local).join(r"Programs\nu\bin"));
+        }
+        for dir in candidates {
+            let candidate = dir.join("nu.exe");
+            if candidate.is_file() {
+                return Some(candidate.to_string_lossy().into_owned());
             }
         }
-        std::env::var("COMSPEC").unwrap_or_else(|_| "cmd.exe".to_string())
     }
-    #[cfg(not(windows))]
-    {
-        std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_string())
+    None
+}
+
+/// Platform shell used when nushell is absent. Windows prefers PowerShell 7,
+/// then Windows PowerShell, then whatever `COMSPEC` names.
+#[cfg(windows)]
+fn fallback_program() -> String {
+    for candidate in ["pwsh.exe", "powershell.exe"] {
+        if which::which(candidate).is_ok() {
+            return candidate.to_string();
+        }
+    }
+    std::env::var("COMSPEC").unwrap_or_else(|_| "cmd.exe".to_string())
+}
+
+#[cfg(not(windows))]
+fn fallback_program() -> String {
+    match std::env::var("SHELL") {
+        Ok(shell) if !shell.trim().is_empty() => shell,
+        _ => "/bin/sh".to_string(),
     }
 }
 
-#[cfg(windows)]
-fn on_path(program: &str) -> bool {
-    std::env::var_os("PATH")
-        .map(|paths| std::env::split_paths(&paths).any(|dir| dir.join(program).is_file()))
-        .unwrap_or(false)
+/// Trims a program path down to something worth showing in a 34 px rail.
+pub fn shell_label(program: &str) -> String {
+    let base = program
+        .rsplit(['/', '\\'])
+        .next()
+        .unwrap_or(program)
+        .trim_end_matches(".exe");
+    if base.is_empty() {
+        program.to_string()
+    } else {
+        base.to_string()
+    }
+}
+
+/// Decides what the next terminal will run. A configured shell always wins;
+/// otherwise nushell if it can be found, and the platform default if not.
+pub fn probe_shell(configured: Option<&str>) -> ShellProbe {
+    let nu_path = find_nu();
+
+    if let Some(shell) = configured.map(str::trim).filter(|s| !s.is_empty()) {
+        return ShellProbe {
+            nu_available: nu_path.is_some(),
+            nu_path,
+            label: shell_label(shell),
+            program: shell.to_string(),
+            configured: true,
+        };
+    }
+
+    let program = nu_path.clone().unwrap_or_else(fallback_program);
+    ShellProbe {
+        nu_available: nu_path.is_some(),
+        nu_path,
+        label: shell_label(&program),
+        program,
+        configured: false,
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::decode_stream;
+    use super::{decode_stream, probe_shell, shell_label};
+
+    #[test]
+    fn labels_are_trimmed_to_the_shell_name() {
+        assert_eq!(shell_label(r"C:\Program Files\nu\bin\nu.exe"), "nu");
+        assert_eq!(shell_label("powershell.exe"), "powershell");
+        assert_eq!(shell_label("/bin/zsh"), "zsh");
+    }
+
+    #[test]
+    fn a_configured_shell_wins_over_probing() {
+        let probe = probe_shell(Some("cmd.exe"));
+        assert_eq!(probe.program, "cmd.exe");
+        assert!(probe.configured);
+    }
+
+    #[test]
+    fn blank_configuration_is_ignored() {
+        assert!(!probe_shell(Some("   ")).configured);
+    }
+
+    #[test]
+    fn without_nushell_it_falls_back_and_says_so() {
+        let probe = probe_shell(None);
+        // Whatever this machine has, the two must agree.
+        assert_eq!(probe.nu_available, probe.nu_path.is_some());
+        assert!(!probe.program.is_empty());
+        assert!(!probe.label.is_empty());
+        if probe.nu_available {
+            assert_eq!(probe.label, "nu");
+        }
+    }
 
     #[test]
     fn passes_ascii_straight_through() {

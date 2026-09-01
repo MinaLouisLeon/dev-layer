@@ -32,7 +32,10 @@ export interface MonitorInfo {
 /** What the HUD reserves on a monitor; the window manager may not use this space. */
 export interface HudContext {
   monitor: MonitorInfo;
+  /** Total margins the HUD occupies, desktop gutter included. */
   reserved: Insets;
+  /** Untouched strip on the left where Windows draws desktop icons. */
+  desktopGutter: number;
   /** Chrome (dock, gauges) is only drawn on monitors flagged as "full". */
   chrome: "full" | "minimal";
 }
@@ -197,4 +200,41 @@ export interface AgentStatus {
   model: string;
   allowGuarded: boolean;
   turns: number;
+}
+
+export interface ShellProbe {
+  nuAvailable: boolean;
+  nuPath: string | null;
+  /** What will actually be spawned. */
+  program: string;
+  /** Short name for the rail, e.g. "nu" or "powershell". */
+  label: string;
+  /** True when it came from panels.shell rather than from probing. */
+  configured: boolean;
+}
+
+/** Mirrors `mino-core`'s domain types (vendored from mino-workbench). */
+export type EntryKind = "file" | "directory" | "symlink" | "other";
+
+export interface DirEntry {
+  path: string;
+  name: string;
+  kind: EntryKind;
+  size: number;
+  modifiedMs: number | null;
+  readonly: boolean;
+  hidden: boolean;
+}
+
+export interface FilePayload {
+  path: string;
+  size: number;
+  modifiedMs: number | null;
+  encoding: "utf8" | "base64";
+  content: string;
+  extension: string | null;
+}
+
+export interface WorkbenchState {
+  root: string | null;
 }

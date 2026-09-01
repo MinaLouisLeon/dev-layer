@@ -17,6 +17,8 @@ use crate::error::{Error, Result};
 use crate::geometry::Insets;
 use crate::monitors::MonitorInfo;
 
+pub mod hit;
+
 pub const LABEL_PREFIX: &str = "hud--";
 
 /// What a HUD window needs to know about itself, resolved by window label.
@@ -24,8 +26,11 @@ pub const LABEL_PREFIX: &str = "hud--";
 #[serde(rename_all = "camelCase")]
 pub struct HudContext {
     pub monitor: MonitorInfo,
-    /// Logical-pixel margins this HUD paints chrome into.
+    /// Total logical-pixel margins the HUD occupies, gutter included. This is
+    /// what the window manager must keep clear.
     pub reserved: Insets,
+    /// Width of the untouched strip on the left. Chrome starts after it.
+    pub desktop_gutter: i32,
     pub chrome: ChromeMode,
 }
 
@@ -44,6 +49,9 @@ pub enum ChromeMode {
 pub struct HudManager {
     /// monitor id -> window label
     windows: Mutex<HashMap<String, String>>,
+    /// Labels whose overlay panel is open, and which therefore take the mouse
+    /// everywhere rather than only over their chrome.
+    overlays: Mutex<std::collections::HashSet<String>>,
 }
 
 impl HudManager {
@@ -102,15 +110,45 @@ impl HudManager {
         } else {
             ChromeMode::Minimal
         };
-        let reserved = match chrome {
+        let mut reserved = match chrome {
             ChromeMode::Full => config.hud.reserved,
             ChromeMode::Minimal => config.hud.reserved_minimal,
         };
+
+        // Only the primary display carries desktop icons, so only the primary
+        // gives up a gutter for them.
+        let desktop_gutter = if monitor.is_primary {
+            config.hud.desktop_gutter.max(0)
+        } else {
+            0
+        };
+        reserved.left += desktop_gutter;
+
         HudContext {
             monitor: monitor.clone(),
             reserved,
+            desktop_gutter,
             chrome,
         }
+    }
+
+    pub fn label_for_monitor(&self, monitor_id: &str) -> Option<String> {
+        self.windows.lock().get(monitor_id).cloned()
+    }
+
+    /// An open panel is raised above the tiled windows, so its HUD window has
+    /// to take the mouse everywhere rather than only over its chrome.
+    pub fn set_overlay_open(&self, label: &str, open: bool) {
+        let mut overlays = self.overlays.lock();
+        if open {
+            overlays.insert(label.to_string());
+        } else {
+            overlays.remove(label);
+        }
+    }
+
+    pub fn overlay_open(&self, label: &str) -> bool {
+        self.overlays.lock().contains(label)
     }
 }
 

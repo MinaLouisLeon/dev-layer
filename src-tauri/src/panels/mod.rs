@@ -9,4 +9,4 @@ pub mod http;
 pub mod terminal;
 
 pub use http::{send_request, HttpRequest, HttpResponse, RequestHistory};
-pub use terminal::{TerminalSessions, CLOSED_EVENT, OUTPUT_EVENT};
+pub use terminal::{probe_shell, ShellProbe, TerminalSessions, CLOSED_EVENT, OUTPUT_EVENT};

@@ -14,7 +14,7 @@ use crate::config::Config;
 use crate::hud::{HudContext, LABEL_PREFIX};
 use crate::metrics::MetricsSnapshot;
 use crate::monitors::MonitorInfo;
-use crate::panels::{HttpRequest, HttpResponse, RequestHistory};
+use crate::panels::{HttpRequest, HttpResponse, RequestHistory, ShellProbe};
 use crate::wm::{LayoutKind, ManagedWindow, MonitorLayout};
 use crate::AppState;
 
@@ -172,6 +172,10 @@ pub fn set_hud_overlay(app: AppHandle, label: String, on: bool) -> Result<(), St
         .get_webview_window(&label)
         .ok_or_else(|| format!("no window {label}"))?;
 
+    // The pointer watcher reads this: an open panel takes the mouse over the
+    // whole window, not just over the rails.
+    app.state::<AppState>().hud.set_overlay_open(&label, on);
+
     if on {
         window.set_always_on_top(true).map_err(|e| e.to_string())?;
         // Focus so the launcher's search field can actually receive typing.
@@ -207,6 +211,13 @@ pub fn terminal_open(
         .terminals
         .open(&app, cols, rows, shell, cwd)
         .map_err(|e| e.to_string())
+}
+
+/// What the next terminal will run, and whether nushell was found. The panel
+/// shows this so a fallback is never silent.
+#[tauri::command]
+pub fn terminal_shell(state: State<'_, AppState>) -> ShellProbe {
+    crate::panels::probe_shell(state.config.panels.shell.as_deref())
 }
 
 #[tauri::command]
@@ -278,6 +289,50 @@ pub fn agent_status(app: AppHandle) -> crate::agent::AgentStatus {
 #[tauri::command]
 pub fn agent_reset(state: State<'_, AppState>) {
     state.agent.reset();
+}
+
+// ---------------------------------------------------------- workbench
+
+#[tauri::command]
+pub fn workbench_state(state: State<'_, AppState>) -> crate::workbench::WorkbenchState {
+    state.workbench.state()
+}
+
+/// Roots the workbench at a folder. Defaults to the home directory, which is
+/// what the panel asks for when it has no folder yet.
+#[tauri::command]
+pub async fn workbench_open(
+    app: AppHandle,
+    path: Option<String>,
+) -> Result<crate::workbench::WorkbenchState, String> {
+    let root = match path.map(|p| p.trim().to_string()).filter(|p| !p.is_empty()) {
+        Some(path) => path,
+        None => app
+            .path()
+            .home_dir()
+            .map_err(|e| e.to_string())?
+            .to_string_lossy()
+            .into_owned(),
+    };
+    app.state::<AppState>().workbench.open(root).await
+}
+
+#[tauri::command]
+pub async fn workbench_list_dir(
+    app: AppHandle,
+    path: String,
+) -> Result<Vec<mino_core::types::DirEntry>, String> {
+    let workbench = &app.state::<AppState>().workbench;
+    workbench.list_dir(path).await
+}
+
+#[tauri::command]
+pub async fn workbench_read_file(
+    app: AppHandle,
+    path: String,
+) -> Result<mino_core::types::FilePayload, String> {
+    let workbench = &app.state::<AppState>().workbench;
+    workbench.read_file(path).await
 }
 
 /// Restores the desktop and quits. The only intended way out, and the same

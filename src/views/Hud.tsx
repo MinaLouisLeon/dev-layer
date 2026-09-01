@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from "react";
+import React, { lazy, Suspense, useEffect, useState } from "react";
 import { CoreBars } from "../components/CoreBars";
 import { Dock, type Overlay } from "../components/Dock";
 import { Launcher } from "../components/Launcher";
@@ -41,6 +41,7 @@ import type {
 const TerminalPanel = lazy(() => import("../components/TerminalPanel"));
 const HttpPanel = lazy(() => import("../components/HttpPanel"));
 const AskPanel = lazy(() => import("../components/AskPanel"));
+const WorkbenchPanel = lazy(() => import("../components/WorkbenchPanel"));
 
 export function Hud({ label }: { label: string }) {
   const [ctx, setCtx] = useState<HudContext | null>(null);
@@ -130,7 +131,7 @@ export function Hud({ label }: { label: string }) {
   if (error) return <div className="hud hud--error">topology error :: {error}</div>;
   if (!ctx) return <div className="hud" />;
 
-  const { monitor, reserved, chrome } = ctx;
+  const { monitor, reserved, chrome, desktopGutter } = ctx;
   const gpu = snapshot?.gpus[0] ?? null;
   const memoryPercent = snapshot?.memory.total
     ? (snapshot.memory.used / snapshot.memory.total) * 100
@@ -140,7 +141,12 @@ export function Hud({ label }: { label: string }) {
   const layout = layouts.find((l) => l.monitorId === monitor.id);
 
   return (
-    <div className={`hud hud--${chrome}`}>
+    <div
+      className={`hud hud--${chrome}`}
+      // Chrome starts after the gutter; the strip itself stays empty so the
+      // desktop icons underneath are both visible and clickable.
+      style={{ "--gutter": `${desktopGutter}px` } as React.CSSProperties}
+    >
       <div className="hud__scanlines" aria-hidden />
       <TileOutlines windows={mine} monitor={monitor} />
 
@@ -180,12 +186,17 @@ export function Hud({ label }: { label: string }) {
           />
         )}
         {chrome === "full" &&
-          (overlay === "terminal" || overlay === "http" || overlay === "agent") && (
+          (overlay === "terminal" ||
+            overlay === "http" ||
+            overlay === "agent" ||
+            overlay === "workbench") && (
             <Suspense fallback={<div className="panel panel--loading dim">loading panel…</div>}>
               {overlay === "terminal" ? (
                 <TerminalPanel onClose={() => setOverlay(null)} />
               ) : overlay === "http" ? (
                 <HttpPanel onClose={() => setOverlay(null)} />
+              ) : overlay === "workbench" ? (
+                <WorkbenchPanel onClose={() => setOverlay(null)} />
               ) : (
                 <AskPanel onClose={() => setOverlay(null)} />
               )}

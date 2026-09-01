@@ -24,6 +24,10 @@ pub struct HudConfig {
     /// Space the HUD chrome reserves on every monitor, in logical pixels.
     /// Must match the rail sizes in `src/styles.css`.
     pub reserved: Insets,
+    /// A strip down the left of the primary display that the HUD leaves
+    /// completely alone: no chrome painted, no clicks taken. This is where
+    /// Windows draws desktop icons, and one column of them is about 110 px.
+    pub desktop_gutter: i32,
     /// Space reserved on non-primary monitors when they only get minimal chrome.
     pub reserved_minimal: Insets,
     /// Draw full chrome (topology rail, dock) on secondary monitors too.
@@ -33,12 +37,16 @@ pub struct HudConfig {
 impl Default for HudConfig {
     fn default() -> Self {
         Self {
+            // These must match the rail sizes in `src/styles.css`; the test
+            // at the bottom of this file pins them so an edit to one side is
+            // not silently lost.
             reserved: Insets {
                 top: 34,
                 right: 0,
-                bottom: 34,
-                left: 220,
+                bottom: 92,
+                left: 280,
             },
+            desktop_gutter: 120,
             reserved_minimal: Insets {
                 top: 34,
                 right: 0,
@@ -252,5 +260,45 @@ impl Config {
             .map_err(|e| crate::error::Error::Config(e.to_string()))?;
         std::fs::write(Self::path_in(dir), raw)
             .map_err(|e| crate::error::Error::Config(e.to_string()))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The reserved insets are how the HUD tells the frontend and the window
+    /// manager how much room its chrome takes, so they are only correct if
+    /// they match what `src/styles.css` paints:
+    ///
+    ///   .rail--top     height 34
+    ///   .rail--left    width 280 (full chrome)
+    ///   .rail--bottom  height 92 full / 34 minimal
+    ///
+    /// These drifted apart once: the Rust side sat at 220/34 for five
+    /// milestones while the CSS painted 280/92, so panels opened partly under
+    /// the left rail and tiled windows ran behind the dock.
+    #[test]
+    fn reserved_insets_match_the_painted_rails() {
+        let hud = HudConfig::default();
+
+        assert_eq!(hud.reserved.top, 34, "top rail height");
+        assert_eq!(hud.reserved.left, 280, "left rail width");
+        assert_eq!(hud.reserved.bottom, 92, "bottom rail height, dock included");
+        assert_eq!(hud.reserved.right, 0);
+
+        assert_eq!(hud.reserved_minimal.top, 34);
+        assert_eq!(hud.reserved_minimal.bottom, 34, "no dock on minimal chrome");
+        assert_eq!(
+            hud.reserved_minimal.left, 0,
+            "no left rail on minimal chrome"
+        );
+    }
+
+    #[test]
+    fn the_gutter_leaves_room_for_a_column_of_desktop_icons() {
+        // A desktop icon cell is roughly 75 px wide at 100 % scaling; 120
+        // clears one column with margin to spare.
+        assert!(HudConfig::default().desktop_gutter >= 110);
     }
 }

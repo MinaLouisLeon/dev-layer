@@ -19,10 +19,10 @@ use windows::Win32::System::Threading::{
 };
 use windows::Win32::UI::Accessibility::{SetWinEventHook, UnhookWinEvent, HWINEVENTHOOK};
 use windows::Win32::UI::WindowsAndMessaging::{
-    DispatchMessageW, EnumWindows, GetAncestor, GetForegroundWindow, GetMessageW, GetWindow,
-    GetWindowLongPtrW, GetWindowRect, GetWindowTextW, GetWindowThreadProcessId, IsIconic,
-    IsWindowVisible, IsZoomed, PostMessageW, PostThreadMessageW, SetForegroundWindow, SetWindowPos,
-    ShowWindow, EVENT_OBJECT_CREATE, EVENT_OBJECT_DESTROY, EVENT_OBJECT_HIDE,
+    DispatchMessageW, EnumWindows, GetAncestor, GetCursorPos, GetForegroundWindow, GetMessageW,
+    GetWindow, GetWindowLongPtrW, GetWindowRect, GetWindowTextW, GetWindowThreadProcessId,
+    IsIconic, IsWindowVisible, IsZoomed, PostMessageW, PostThreadMessageW, SetForegroundWindow,
+    SetWindowPos, ShowWindow, EVENT_OBJECT_CREATE, EVENT_OBJECT_DESTROY, EVENT_OBJECT_HIDE,
     EVENT_OBJECT_LOCATIONCHANGE, EVENT_OBJECT_SHOW, EVENT_SYSTEM_FOREGROUND,
     EVENT_SYSTEM_MINIMIZEEND, EVENT_SYSTEM_MINIMIZESTART, GA_ROOT, GWL_EXSTYLE, GWL_STYLE,
     GW_OWNER, MSG, OBJID_WINDOW, SWP_NOACTIVATE, SWP_NOCOPYBITS, SWP_NOZORDER, SW_RESTORE,
@@ -176,6 +176,13 @@ pub fn describe(hwnd: HWND) -> Option<NativeWindow> {
 
 pub fn window_info(hwnd: isize) -> Option<NativeWindow> {
     describe(handle(hwnd))
+}
+
+/// Cursor position in virtual-desktop physical pixels.
+pub fn cursor_position() -> Option<(i32, i32)> {
+    let mut point = windows::Win32::Foundation::POINT::default();
+    unsafe { GetCursorPos(&mut point) }.ok()?;
+    Some((point.x, point.y))
 }
 
 pub fn foreground_window() -> Option<isize> {

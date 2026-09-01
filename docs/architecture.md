@@ -262,6 +262,59 @@ with `reqwest`, already present for the HTTP panel.
 Not built: voice. WebView2 has no dependable speech recognition, so it needs a
 bundled local model rather than a browser API.
 
+## 13. Click-through, and the strip the HUD does not own
+
+A HUD that covers the whole monitor takes every click that does not land on
+another app's window — including double-clicks on desktop icons. Tauri can only
+toggle click-through per window, so `hud::hit` polls the cursor (one
+`GetCursorPos` per 60 ms) and flips `set_ignore_cursor_events` as it crosses
+between painted chrome and the transparent parts. An open panel is raised above
+the tiled windows and takes the mouse everywhere; everything else is decided by
+a pure function with the gutter checked first, which is unit-tested.
+
+`desktopGutter` is the strip on the left of the primary display that the HUD
+neither paints nor clicks: the rails start after it, and the tiling region
+excludes it, so app windows do not bury the icons either. Only the primary
+display gets one, because that is where Windows draws icons.
+
+### A bug worth remembering
+
+The Rust-side `reserved` insets sat at 220/34 for five milestones while the CSS
+painted 280/92. Two commits claimed to fix it; both were `.replace()` calls
+against a single-line struct that `cargo fmt` had already split across lines,
+so they silently matched nothing — and both were "verified" by grepping the
+README rather than the config. The result: panels opened partly under the left
+rail, and tiled windows ran behind the dock.
+
+`config.rs` now has a test pinning the insets to the rail sizes in
+`src/styles.css`. If either side moves without the other, it fails.
+## 14. The workbench, vendored
+
+Mino Workbench ships *inside* dev-layer rather than beside it: one app, one
+installer, opened from the dock like any other panel.
+
+`crates/mino-core` is copied into the repo rather than pulled as a git
+dependency. Vendoring costs the ability to `cargo update` it, and buys three
+things that matter more here: the installer stays a single artifact, the build
+does not depend on another repository staying reachable, and the crate can be
+feature-gated locally if the SSH stack it currently pulls unconditionally
+(`russh`, `russh-sftp`, `tokio-tungstenite`) becomes a burden. Its MIT licence
+travels with it.
+
+`src-tauri/Cargo.toml` is now a workspace root with the vendored crate as a
+member. It compiled unchanged against dev-layer's newer dependency versions
+(`portable-pty` 0.9 rather than 0.8, `which` 8 rather than 7), so the copy is
+identical to upstream and can be re-synced.
+
+**dev-layer does not touch the filesystem itself.** The workbench commands
+delegate to `mino-core`'s `Transport`, which keeps that crate's rule intact —
+one interface for local, SSH and remote-agent — and brings its path guard with
+it: a session cannot read outside the folder it was opened on.
+
+Not yet brought over: the editor's save path, search, git and GitHub panes, and
+the SSH target. They are all present in `mino-core`; only the dev-layer-side
+commands and panes are missing.
+
 ## Module map
 
 ```
@@ -280,6 +333,8 @@ src-tauri/src/
 ├─ hud/            per-monitor HUD windows, reserved-region contract
 ├─ shell/          reversible shell mutation (taskbar auto-hide)
 ├─ wm/             window manager: pure layout engine, reconcile loop
+├─ workbench/      file tree and viewer over mino-core's transport
+└─ crates/mino-core/  vendored from mino-workbench (MIT)
 └─ platform/       win/ (display, shell, apps) | stub.rs (everything else)
 ```
 

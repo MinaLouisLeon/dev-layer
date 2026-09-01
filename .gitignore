@@ -6,3 +6,8 @@ src-tauri/gen/
 .DS_Store
 .env
 .env.local
+
+# `ts-rs` writes these during `cargo test`, so a test run dirties the tree.
+# mino-core's own build regenerates them; dev-layer's frontend does not use
+# them (it mirrors the handful of shapes it needs in src/types.ts).
+src-tauri/crates/mino-core/bindings/
